@@ -1,0 +1,21 @@
+# file for Git-hook config
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace # remove whitespace at end of lines
+      - id: end-of-file-fixer # ensure files end with a newline
+      - id: check-yaml # check .yaml files
+      - id: check-added-large-files # prevent large files from being committed
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black # run black to auto-format python code
+        language_version: python3
+
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8 # run linter to check for errors/warnings/style
