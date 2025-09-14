@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--parallel",
-        action = "store true",
+        action = "store_true",
         help = "Calculate metrics in parallel"
     )
     parser.add_argument(
@@ -56,7 +56,7 @@ def main() -> None:
     # open URL file
     try:
         urls = read_urls(args.url_file)
-    except:
+    except Exception as e:
         print(f"Error reading URL file {e}", file = sys.stderr)
         sys.exit(1)
     
