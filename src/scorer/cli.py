@@ -4,7 +4,7 @@ CLI for scoring tool.
 
 from __future__ import annotations
 import argparse
-from typing import Dict, Any
+from typing import List, Dict, Union
 from pathlib import Path
 import sys
 import time
