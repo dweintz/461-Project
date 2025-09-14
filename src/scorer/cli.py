@@ -4,10 +4,13 @@ CLI for scoring tool.
 
 from __future__ import annotations
 import argparse
-from typing import List, Dict, Union
+from typing import List
 from pathlib import Path
 import sys
-import time
+
+
+# ONCE THEY ARE CODED, WILL IMPORT URL HANDLERS HERE AND CALL THEM LATER
+
 
 def parse_args() -> argparse.Namespace:
     '''
@@ -34,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-def real_urls(file_path: Path) -> List[str]:
+def read_urls(file_path: Path) -> List[str]:
     '''
     read newline-delimited URLs from a file
     '''
@@ -45,3 +48,26 @@ def real_urls(file_path: Path) -> List[str]:
     # open file and add URLs to a list
     with file_path.open("r", encoding = "utf-8") as f:
         return [line.strip() for line in f if line.strip()]
+    
+def main() -> None:
+    # get CLI arguments
+    args = parse_args()
+
+    # open URL file
+    try:
+        urls = read_urls(args.url_file)
+    except:
+        print(f"Error reading URL file {e}", file = sys.stderr)
+        sys.exit(1)
+    
+    # show that URLs are being processed
+    print(f"Processing {len(urls)} URLs...")
+
+    # TODO: INITIALIZE HANDLERS AND METRICS
+
+    # TEMPORARY OUTPUT, REPLACE LATER
+    for url in urls:
+        print(f"{url} -> NetScore: 0.0")
+
+if __name__  == "__main__":
+    main()
