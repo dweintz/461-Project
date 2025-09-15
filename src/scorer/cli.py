@@ -7,7 +7,10 @@ import argparse
 from typing import List
 from pathlib import Path
 import sys
-
+from url_handler.base import classify_url
+from url_handler.model import handle_model_url
+from url_handler.dataset import handle_dataset_url
+from url_handler.code import handle_code_url
 
 # ONCE THEY ARE CODED, WILL IMPORT URL HANDLERS HERE AND CALL THEM LATER
 
@@ -64,6 +67,18 @@ def main() -> None:
     print(f"Processing {len(urls)} URLs...")
 
     # TODO: INITIALIZE HANDLERS AND METRICS
+
+    # Classify URLs by type (model, dataset, code)
+    url_type = classify_url(urls)
+    if url_type == "unknown":
+        print(f"Error: Unknown URL type for {urls}", file = sys.stderr)
+        sys.exit(1)
+    if url_type == "model":
+        handle_model_url(urls)
+    elif url_type == "dataset":
+        handle_dataset_url(urls)
+    elif url_type == "code":
+        handle_code_url(urls)
 
     # TEMPORARY OUTPUT, REPLACE LATER
     for url in urls:
