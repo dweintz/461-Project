@@ -6,7 +6,8 @@ from __future__ import annotations
 import argparse
 from typing import List
 from pathlib import Path
-import sys
+import sys, os
+from .utils.logging import setup_logging, set_run_id, get_logger, set_url
 from url_handler.base import classify_url
 from url_handler.model import handle_model_url
 from url_handler.dataset import handle_dataset_url
@@ -38,6 +39,22 @@ def parse_args() -> argparse.Namespace:
         default = None,
         help = "Path to write log file (if not set, logs go to stdout)"
     )
+    parser.add_argument(
+        "--log-level",
+        default=os.environ.get("LOG_LEVEL", "INFO"),
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="File log level (default INFO)"
+    )
+    parser.add_argument(
+        "--log-text",
+        action="store_true",
+        help="Use plain text logs instead of JSON Lines"
+    )
+    parser.add_argument(
+        "--run-id",
+        default=None,
+        help="Optional run id to correlate logs across processes"
+    )
     return parser.parse_args()
 
 def read_urls(file_path: Path) -> List[str]:
@@ -55,6 +72,15 @@ def read_urls(file_path: Path) -> List[str]:
 def main() -> None:
     # get CLI arguments
     args = parse_args()
+
+    # Configure the log destination first
+    if args.log_file:
+        os.environ["LOG_FILE"] = str(args.log_file)
+
+    # Init logging
+    setup_logging(level=args.log_level, json_lines=not args.log_text)
+    run_id = set_run_id(args.run_id)
+    log = get_logger("cli")
 
     # open URL file
     try:
