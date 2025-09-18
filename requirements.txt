@@ -1,1 +1,1 @@
-put any dependencies in this file
+huggingface_hub
