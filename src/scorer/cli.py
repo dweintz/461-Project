@@ -7,7 +7,7 @@ import argparse
 from typing import List
 from pathlib import Path
 import sys, os
-from .utils.logging import setup_logging, set_run_id, get_logger, set_url
+from utils.logging import setup_logging, set_run_id, get_logger, set_url
 from url_handler.base import classify_url
 from url_handler.model import handle_model_url
 from url_handler.dataset import handle_dataset_url
@@ -95,16 +95,21 @@ def main() -> None:
     # TODO: INITIALIZE HANDLERS AND METRICS
 
     # Classify URLs by type (model, dataset, code)
-    url_type = classify_url(urls)
-    if url_type == "unknown":
-        print(f"Error: Unknown URL type for {urls}", file = sys.stderr)
-        sys.exit(1)
-    if url_type == "model":
-        handle_model_url(urls)
-    elif url_type == "dataset":
-        handle_dataset_url(urls)
-    elif url_type == "code":
-        handle_code_url(urls)
+    classifications = {}
+    for url in urls:
+        url_type = classify_url(url)
+        if url_type == "unknown":
+            print(f"Error: Unknown URL type for {urls}", file = sys.stderr)
+            sys.exit(1)
+        if url_type == "model":
+            handle_model_url(url)
+            classifications[url] = url_type
+        elif url_type == "dataset":
+            handle_dataset_url(url)
+            classifications[url] = url_type
+        elif url_type == "code":
+            handle_code_url(url)
+            classifications[url] = url_type
 
     # TEMPORARY OUTPUT, REPLACE LATER
     for url in urls:
