@@ -12,6 +12,9 @@ from url_handler.base import classify_url
 from url_handler.model import handle_model_url
 from url_handler.dataset import handle_dataset_url
 from url_handler.code import handle_code_url
+from metrics.size import get_size_score
+from metrics.license import get_license_score
+from metrics.dataset_quality import get_dataset_quality_score
 
 # ONCE THEY ARE CODED, WILL IMPORT URL HANDLERS HERE AND CALL THEM LATER
 
@@ -92,8 +95,6 @@ def main() -> None:
     # show that URLs are being processed
     print(f"Processing {len(urls)} URLs...")
 
-    # TODO: INITIALIZE HANDLERS AND METRICS
-
     # Classify URLs by type (model, dataset, code)
     classifications = {}
     for url in urls:
@@ -110,6 +111,12 @@ def main() -> None:
         elif url_type == "code":
             handle_code_url(url)
             classifications[url] = url_type
+
+        # Calculate metrics
+        size_score = get_size_score(url, url_type)
+        license_score = get_license_score(url, url_type)
+        dataset_quality_score = get_dataset_quality_score(url, url_type)
+        
 
     # TEMPORARY OUTPUT, REPLACE LATER
     for url in urls:

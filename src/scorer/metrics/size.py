@@ -4,8 +4,11 @@ Implementing size metric based of model size
 
 from huggingface_hub import HfApi
 from base import get_repo_id
+import math
 
 HF_API = HfApi()
+
+target_size_bytes = 1000000000 # 1 billion bytes = 1 GB
 
 # Pass in the url and its type from the URL handler cli code
 def get_size_score(url: str, type: str) -> float:
@@ -28,6 +31,7 @@ def get_size_score(url: str, type: str) -> float:
         total_bytes += size
 
     # Normalize this score
-    score = None
+    diff = abs(math.log10(total_bytes) - math.log10(target_size_bytes))
+    score = max(0, 1 - diff / 3) # Tolerance of 3 is forgiving for size differences to target
 
     return score
