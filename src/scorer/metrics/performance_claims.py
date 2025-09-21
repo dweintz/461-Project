@@ -11,7 +11,7 @@ from typing import Tuple
 from dotenv import load_dotenv
 from pathlib import Path
 
-def get_performance_score(url : str, url_type : str) -> Tuple[float, int]:
+def get_performance_claims_score(url : str, url_type : str) -> Tuple[float, int]:
     # mark start time for latency calculation
     start_time = time.time()
 
@@ -81,5 +81,5 @@ if __name__ == "__main__":
 
     url = f"https://hf:{token}@huggingface.co/bert-base-uncased"
     url_type = ""
-    score, latency = get_performance_score(url, url_type)
+    score, latency = get_performance_claims_score(url, url_type)
     print(f"Performance claims score: {score}, latency: {latency} ms")

@@ -16,7 +16,7 @@ from metrics.size import get_size_score
 from metrics.license import get_license_score
 from metrics.dataset_quality import get_dataset_quality_score
 from metrics.code_quality import *
-from metrics.performance import get_performance_score
+from metrics.performance_claims import get_performance_claims_score
 
 # ONCE THEY ARE CODED, WILL IMPORT URL HANDLERS HERE AND CALL THEM LATER
 
@@ -119,7 +119,7 @@ def main() -> None:
         license_score = get_license_score(url, url_type)
         dataset_quality_score = get_dataset_quality_score(url, url_type)
         code_quality_score = get_code_quality_score(url, url_type)
-        performance_score = get_performance_score(url, url_type)
+        performance_score = get_performance_claims_score(url, url_type)
         
 
     # TEMPORARY OUTPUT, REPLACE LATER
