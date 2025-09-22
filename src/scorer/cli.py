@@ -15,8 +15,8 @@ from url_handler.code import handle_code_url
 from metrics.size import get_size_score
 from metrics.license import get_license_score
 from metrics.dataset_quality import get_dataset_quality_score
-from metrics.code_quality import *
-from metrics.performance_claims import get_performance_claims_score
+from metrics.code_quality import get_code_quality
+from metrics.performance_claims import get_performance_claims
 
 # ONCE THEY ARE CODED, WILL IMPORT URL HANDLERS HERE AND CALL THEM LATER
 
@@ -118,10 +118,9 @@ def main() -> None:
         size_score = get_size_score(url, url_type)
         license_score = get_license_score(url, url_type)
         dataset_quality_score = get_dataset_quality_score(url, url_type)
-        code_quality_score = get_code_quality_score(url, url_type)
-        performance_score = get_performance_claims_score(url, url_type)
+        code_quality, code_quality_latency = get_code_quality(url, url_type)
+        performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
         
-
     # TEMPORARY OUTPUT, REPLACE LATER
     for url in urls:
         print(f"{url} -> NetScore: 0.0")

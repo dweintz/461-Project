@@ -10,7 +10,7 @@ from typing import Tuple
 from git import Repo
 from huggingface_hub import hf_hub_download
 
-def get_performance_claims_score(url: str, url_type: str) -> Tuple[float, int]:
+def get_performance_claims(url: str, url_type: str) -> Tuple[float, int]:
     '''
     Function to get model or code performance claims based on URL type. 
     '''
@@ -74,7 +74,7 @@ def _check_model_card_performance(model_url: str) -> float:
     '''
 
     score = 0.0
-    
+
     try:
         # extract repo_id from url
         if "huggingface.co/" not in model_url:
@@ -129,11 +129,11 @@ if __name__ == "__main__":
     # model URL test
     url_model = f"https://huggingface.co/bert-base-uncased"
     url_type_model = "model"
-    score, latency = get_performance_claims_score(url_model, url_type_model)
-    print(f"Model: Score={score}, Latency={latency}ms")
+    score, latency = get_performance_claims(url_model, url_type_model)
+    print(f"Model: Score = {score:.2f}, Latency={latency}ms")
 
     # code URL test
     url_code = "https://github.com/pallets/flask"
     url_type_code = "code"
-    score, latency = get_performance_claims_score(url_code, url_type_code)
-    print(f"Code: Score={score}, Latency={latency}ms")
+    score, latency = get_performance_claims(url_code, url_type_code)
+    print(f"Code: Score = {score:.2f}, Latency= {latency}ms")

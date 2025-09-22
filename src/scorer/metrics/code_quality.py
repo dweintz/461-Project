@@ -76,7 +76,7 @@ def docstring_ratio(path: str) -> float:
     return documented / total if total > 0 else 0.0
 
 # function to analyze the quality of the code
-def get_code_quality_score(url: str, url_type: str) -> Tuple[float, int]:
+def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
     start_time = time.time()
     temp_dir = tempfile.mkdtemp()
 
@@ -158,5 +158,5 @@ if __name__ == "__main__":
 
     url = f"https://hf:{token}@huggingface.co/bert-base-uncased"
     url_type = ''
-    score, latency = get_code_quality_score(url, url_type)
+    score, latency = get_code_quality(url, url_type)
     print(f"Code quality score: {score}, latency: {latency} ms")
