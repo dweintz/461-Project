@@ -3,11 +3,16 @@ Implementing dataset quality metric scoring by looking at
 the number of downloads, likes
 '''
 
-from huggingface_hub import HfApi
-from base import get_repo_id
+import os
+from dotenv import load_dotenv
+from huggingface_hub import HfApi, login
+from .base import get_repo_id
 import math
 
+load_dotenv()
+HF_TOKEN = os.getenv("HF_Token")
 HF_API = HfApi()
+login(token=HF_TOKEN)
 
 # Downloads and likes targets for top tier quality
 max_downloads = 1000000 # 1 million downloads
@@ -18,12 +23,14 @@ def normalize(value: int, target: int) -> float:
         return 0.0
     return min(1.0, math.log10(value + 1) / math.log10(target + 1))
 
-def get_dataset_quality_score(url: str, type: str) -> float:
-    # Any logic to determine dataset quality from model/dataset/code url?
+def get_dataset_quality_score(url: str, url_type: str) -> float:
+    if url_type != "dataset":
+        print("Dataset quality score is only applicable to datasets")
+        return None
 
     # Get repo id
     try: 
-        repo_id = get_repo_id(url)
+        repo_id = get_repo_id(url, url_type)
     except Exception as e:
         print(f"Error getting repo id {e}")
         return None
