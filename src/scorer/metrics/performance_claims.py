@@ -9,6 +9,8 @@ import time
 from typing import Tuple
 from git import Repo
 from huggingface_hub import hf_hub_download
+from dotenv import load_dotenv
+from pathlib import Path
 
 def get_performance_claims(url: str, url_type: str) -> Tuple[float, int]:
     '''
@@ -73,6 +75,9 @@ def _check_model_card_performance(model_url: str) -> float:
     Function to check the model card/README on Hugging Face for performance claims.
     '''
 
+    load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
+    hf_token = os.getenv("HF_TOKEN")
+
     score = 0.0
 
     try:
@@ -114,7 +119,7 @@ def _keyword_score(text: str, keywords: list[str]) -> float:
     score = min(1.0, matches / len(keywords))
     return score
     
-# Standalone test
+# TEST (DELETE THIS)
 if __name__ == "__main__":
     import os
     from dotenv import load_dotenv
