@@ -118,27 +118,3 @@ def _keyword_score(text: str, keywords: list[str]) -> float:
             matches += 1        
     score = min(1.0, matches / len(keywords))
     return score
-    
-# TEST (DELETE THIS)
-if __name__ == "__main__":
-    import os
-    from dotenv import load_dotenv
-    from pathlib import Path
-
-    load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        raise RuntimeError("HF_TOKEN not found") 
-    print("Loaded token starts with:", hf_token[:10])
-
-    # model URL test
-    url_model = f"https://huggingface.co/bert-base-uncased"
-    url_type_model = "model"
-    score, latency = get_performance_claims(url_model, url_type_model)
-    print(f"Model: Score = {score:.2f}, Latency={latency}ms")
-
-    # code URL test
-    url_code = "https://github.com/pallets/flask"
-    url_type_code = "code"
-    score, latency = get_performance_claims(url_code, url_type_code)
-    print(f"Code: Score = {score:.2f}, Latency= {latency}ms")
