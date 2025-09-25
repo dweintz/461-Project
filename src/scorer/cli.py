@@ -132,6 +132,8 @@ def main() -> None:
             classifications[url] = url_type
 
         # Calculate metrics
+        start_time = time.time()
+
         size_score, size_latency = get_size_score(url, url_type)
         license_score, license_latency = get_license_score(url, url_type)
         dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
@@ -139,9 +141,19 @@ def main() -> None:
         performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
         bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
         ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
+        dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0 # need a function for this
 
-
-        
+        # net score
+        net_score = 0.15 * size_score + \
+                    0.15 * license_score + \
+                    0.10 * ramp_up + \
+                    0.10 * bus_factor + \
+                    0.15 * dataset_quality_score + \
+                    0.10 * code_quality + \
+                    0.15 * performance_claims + \
+                    0.10 * dataset_and_code_score
+                           
+        net_score_latency = start_time - time.time()
         
     # TEMPORARY OUTPUT, REPLACE LATER
     for url in urls:
