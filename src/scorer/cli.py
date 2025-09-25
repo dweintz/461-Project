@@ -18,6 +18,8 @@ from metrics.license import get_license_score
 from metrics.dataset_quality import get_dataset_quality_score
 from metrics.code_quality import get_code_quality
 from metrics.performance_claims import get_performance_claims
+from metrics.rampup import get_ramp_up
+from metrics.busfactor import get_bus_factor
 
 # ONCE THEY ARE CODED, WILL IMPORT URL HANDLERS HERE AND CALL THEM LATER
 
@@ -135,6 +137,9 @@ def main() -> None:
         dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
         code_quality, code_quality_latency = get_code_quality(url, url_type)
         performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
+        bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
+        ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
+
 
         
         
