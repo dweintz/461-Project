@@ -1,1 +1,26 @@
-an executable script
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ./run install
+if [ "$1" == "install" ]; then
+    echo "Installing requirements..."
+    pip install -r requirements.txt
+    exit 0
+
+# ./ run URL_FILE
+elif [ "$1" == "test" ]; then
+    echo "Running tests..."
+    pytest
+    exit 0
+
+# ./ run test
+else
+    URL_FILE="$1"
+    if [ ! -f "$URL_FILE" ]; then
+        echo "Error: File not found: $URL_FILE"
+        exit 1
+    fi
+    echo "Running CLI program with URL file: $URL_FILE"
+    python src/scorer/cli.py "$URL_FILE"
+    exit $?
+fi
