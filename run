@@ -7,13 +7,13 @@ if [ "$1" == "install" ]; then
     pip install -r requirements.txt
     exit 0
 
-# ./ run URL_FILE
+# ./ run test
 elif [ "$1" == "test" ]; then
     echo "Running tests..."
     pytest
     exit 0
 
-# ./ run test
+# ./ run URL_FILE
 else
     URL_FILE="$1"
     if [ ! -f "$URL_FILE" ]; then
