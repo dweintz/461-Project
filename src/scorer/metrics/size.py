@@ -1,5 +1,6 @@
 '''
-Implementing size metric based of model size
+Implementing size metric based of model size 
+and hardware capabilities
 '''
 
 import math
@@ -15,7 +16,28 @@ HF_TOKEN = os.getenv("HF_Token")
 HF_API = HfApi()
 login(token=HF_TOKEN)
 
-target_size_bytes = 1000000000 # 1 billion bytes = 1 GB
+hardware_limits = {
+    "raspberry_pi": 4000000000, # 4GB
+    "jetson_nano": 4000000000, # 4GB
+    "desktop_pc": 32000000000, # 32GB
+    "aws_server": 512000000000 # 512GB
+}
+
+def score_for_hardware(total_bytes: int, limit: int) -> float:
+    """
+    Returns a score between 0 and 1 based on how well the model size fits.
+    1 = fits easily, 0 = too big.
+    """
+    if total_bytes == 0:
+        return 0.0
+    
+    ratio = total_bytes / limit
+    if ratio <= 1:
+        # Perfect fit at small sizes, degrades as you approach limit
+        return 1 - 0.5 * ratio  
+    else:
+        # Penalize oversize models strongly
+        return max(0, 1 - math.log10(ratio))
 
 # Pass in the url and its type from the URL handler cli code
 def get_size_score(url: str, url_type: str) -> float:
@@ -46,11 +68,13 @@ def get_size_score(url: str, url_type: str) -> float:
         code_info = requests.get(base_url).json()
         total_bytes = (code_info.get("size", 0) or 0) * 1024 # Convert to bytes
 
-    # Normalize this score
     print(f"Total bytes for {url} is {total_bytes}")
-    diff = abs(math.log10(total_bytes) - math.log10(target_size_bytes))
-    score = max(0, 1 - diff / 3) # Tolerance of 3 is forgiving for size differences to target
+
+    size_dict = {}
+    for hardware, limit in hardware_limits.items():
+        score = score_for_hardware(total_bytes, limit)
+        size_dict[hardware] = score
 
     latency = int((time.time() - start_time) * 1000)
 
-    return score, latency
+    return size_dict, latency
