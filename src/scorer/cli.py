@@ -115,9 +115,9 @@ def main() -> None:
             classifications[url] = url_type
 
         # Calculate metrics
-        size_score = get_size_score(url, url_type)
-        license_score = get_license_score(url, url_type)
-        dataset_quality_score = get_dataset_quality_score(url, url_type)
+        size_score, size_latency = get_size_score(url, url_type)
+        license_score, license_latency = get_license_score(url, url_type)
+        dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
         code_quality, code_quality_latency = get_code_quality(url, url_type)
         performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
         

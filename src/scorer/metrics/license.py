@@ -5,6 +5,7 @@ the license is compatible with LGPLv2.1
 
 import os
 import requests
+import time
 from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 from .base import get_repo_id
@@ -25,6 +26,7 @@ compatible_licenses = [
 # Normalize license names from HF/GitHub API
 def is_compatible(license: str) -> bool:
     if not license:
+        print("No license found")
         return False
 
     normalized = license.lower().strip()
@@ -43,12 +45,15 @@ def is_compatible(license: str) -> bool:
     return normalized in compatible_licenses
 
 def get_license_score(url: str, url_type: str) -> int:
+    start_time = time.time()
+
     # Get repo id
     try: 
         repo_id = get_repo_id(url, url_type)
     except Exception as e:
         print(f"Error getting repo id {e}")
-        return None
+        latency = int((time.time() - start_time) * 1000)
+        return None, latency
 
     license = None
     if url_type == "model":
@@ -69,7 +74,9 @@ def get_license_score(url: str, url_type: str) -> int:
     # Check if it's compatible with LGPLv2.1
     normalized = is_compatible(license)
 
+    latency = int((time.time() - start_time) * 1000)
+
     if normalized:
-        return 1
+        return 1, latency
     else: 
-        return 0
+        return 0, latency

@@ -4,6 +4,7 @@ the number of downloads, likes
 '''
 
 import os
+import time
 from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 from .base import get_repo_id
@@ -24,16 +25,20 @@ def normalize(value: int, target: int) -> float:
     return min(1.0, math.log10(value + 1) / math.log10(target + 1))
 
 def get_dataset_quality_score(url: str, url_type: str) -> float:
+    start_time = time.time()
+
     if url_type != "dataset":
         print("Dataset quality score is only applicable to datasets")
-        return None
+        latency = int((time.time() - start_time) * 1000)
+        return None, latency
 
     # Get repo id
     try: 
         repo_id = get_repo_id(url, url_type)
     except Exception as e:
         print(f"Error getting repo id {e}")
-        return None
+        latency = int((time.time() - start_time) * 1000)
+        return None, latency
     
     dataset_info = HF_API.dataset_info(repo_id=repo_id, files_metadata=False)
 
@@ -52,4 +57,6 @@ def get_dataset_quality_score(url: str, url_type: str) -> float:
     # Weighted sum of downloads and likes scores
     score = 0.8 * downloads_score + 0.2 * likes_score
 
-    return round(score, 2)
+    latency = int((time.time() - start_time) * 1000)
+
+    return round(score, 2), latency

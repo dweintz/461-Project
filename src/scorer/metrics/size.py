@@ -5,6 +5,7 @@ Implementing size metric based of model size
 import math
 import os
 import requests
+import time
 from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 from .base import get_repo_id
@@ -18,12 +19,15 @@ target_size_bytes = 1000000000 # 1 billion bytes = 1 GB
 
 # Pass in the url and its type from the URL handler cli code
 def get_size_score(url: str, url_type: str) -> float:
+    start_time = time.time()
+
     # Get repo id
     try: 
         repo_id = get_repo_id(url, url_type)
     except Exception as e:
         print(f"Error getting repo id {e}")
-        return None
+        latency = int((time.time() - start_time) * 1000)
+        return None, latency
 
     total_bytes = 0
     if url_type == "model":
@@ -47,4 +51,6 @@ def get_size_score(url: str, url_type: str) -> float:
     diff = abs(math.log10(total_bytes) - math.log10(target_size_bytes))
     score = max(0, 1 - diff / 3) # Tolerance of 3 is forgiving for size differences to target
 
-    return score
+    latency = int((time.time() - start_time) * 1000)
+
+    return score, latency
