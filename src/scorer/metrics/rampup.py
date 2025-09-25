@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Tuple, List
 
 from git import Repo
+from dotenv import load_dotenv
 
 try:
     from huggingface_hub import InferenceClient
@@ -88,37 +89,47 @@ def _ask_llm(readme: str, tree: str) -> float:
     if not model_id or not token:
         raise RuntimeError("RAMPUP_LLM_MODEL and HF_TOKEN must be set for LLM-only ramp-up scoring.")
 
-    # Cap README to keep prompt small
     readme = (readme or "").strip()
     if len(readme) > 20000:
         readme = readme[:20000] + "\n\n[TRUNCATED]"
-
     user_prompt = USER_PROMPT_TEMPLATE.format(n_files=120, tree=tree[:8000], readme=readme)
 
     client = InferenceClient(model=model_id, token=token, timeout=90)
 
-    # For serverless text-generation models; adjusted for concise JSON output
-    completion = client.text_generation(
-        prompt=f"{SYSTEM_PROMPT}\n{user_prompt}",
-        max_new_tokens=200,
-        temperature=0.2,
-        do_sample=False,
-        return_full_text=False,
-    )
+    txt = None
 
-    # Try strict JSON first
-    txt = completion.strip()
+    # 1) Prefer chat-completions (most Instruct models are exposed this way)
+    try:
+        resp = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=200,
+            temperature=0.2,
+        )
+        txt = (resp.choices[0].message.content or "").strip()
+    except Exception:
+        # 2) Fallback to raw text-generation for models/providers that still use it
+        completion = client.text_generation(
+            prompt=f"{SYSTEM_PROMPT}\n{user_prompt}",
+            max_new_tokens=200,
+            temperature=0.2,
+            do_sample=False,
+            return_full_text=False,
+        )
+        txt = completion.strip()
+
+    # Parse strict JSON first; fallback to first float in [0,1]
     try:
         data = json.loads(txt)
         score = float(data.get("score", 0.0))
         return max(0.0, min(1.0, score))
     except Exception:
-        # Fallback: find a float 0..1 in output
-        m = re.search(r"([01](?:\.\d+)?|\.\d+)", txt)
+        m = re.search(r"([01](?:\.\d+)?|\.\d+)", txt or "")
         if m:
             try:
-                val = float(m.group(1))
-                return max(0.0, min(1.0, val))
+                return max(0.0, min(1.0, float(m.group(1))))
             except Exception:
                 pass
     return 0.0
@@ -149,12 +160,9 @@ def ramp_up(url: str) -> Tuple[float, int]:
 
 # Local test main
 if __name__ == "__main__":
+    load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
     token = os.getenv("HF_TOKEN")
     model = os.getenv("RAMPUP_LLM_MODEL")
-    if not token:
-        print("Not token")
-    if not model:
-        print("Not model")
     if not token or not model:
         print("Set HF_TOKEN and RAMPUP_LLM_MODEL before running this module directly.")
     url = f"https://hf:{token}@huggingface.co/bert-base-uncased" if token else "https://huggingface.co/bert-base-uncased"
