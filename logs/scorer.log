@@ -1,0 +1,8 @@
+{"ts": "2025-09-25T18:38:01.471Z", "level": "INFO", "logger": "scorer.cli", "msg": "run started", "run_id": "390c4acb-23c7-46b3-afa4-60d6c45de9fd", "url": null, "metric": null}
+{"ts": "2025-09-25T18:38:01.472Z", "level": "INFO", "logger": "scorer.cli", "msg": "read urls", "run_id": "390c4acb-23c7-46b3-afa4-60d6c45de9fd", "url": null, "metric": null}
+{"ts": "2025-09-25T18:38:01.473Z", "level": "INFO", "logger": "scorer.cli", "msg": "processing url", "run_id": "390c4acb-23c7-46b3-afa4-60d6c45de9fd", "url": null, "metric": null}
+{"ts": "2025-09-25T18:38:01.473Z", "level": "INFO", "logger": "scorer.cli", "msg": "classified", "run_id": "390c4acb-23c7-46b3-afa4-60d6c45de9fd", "url": null, "metric": null}
+{"ts": "2025-09-25T18:38:55.677Z", "level": "INFO", "logger": "scorer.cli", "msg": "run started", "run_id": "0a3bd1bf-d49f-40cc-802d-83d2c053d416", "url": null, "metric": null}
+{"ts": "2025-09-25T18:38:55.678Z", "level": "INFO", "logger": "scorer.cli", "msg": "read urls", "run_id": "0a3bd1bf-d49f-40cc-802d-83d2c053d416", "url": null, "metric": null}
+{"ts": "2025-09-25T18:38:55.678Z", "level": "INFO", "logger": "scorer.cli", "msg": "processing url", "run_id": "0a3bd1bf-d49f-40cc-802d-83d2c053d416", "url": null, "metric": null}
+{"ts": "2025-09-25T18:38:55.679Z", "level": "INFO", "logger": "scorer.cli", "msg": "classified", "run_id": "0a3bd1bf-d49f-40cc-802d-83d2c053d416", "url": null, "metric": null}

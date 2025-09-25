@@ -73,9 +73,14 @@ def read_urls(file_path: Path) -> List[str]:
     if not file_path.exists():
         raise FileNotFoundError(f"URL file {file_path} does not exist.")
     
-    # open file and add URLs to a list
-    with file_path.open("r", encoding = "utf-8") as f:
-        return [line.strip() for line in f if line.strip()]
+    urls = []
+    with file_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            # Separate commas and strip whitespace
+            parts = [url.strip() for url in line.split(",") if url.strip()]
+            urls.extend(parts)
+
+    return urls
     
 def main() -> None:
     # get CLI arguments
@@ -134,7 +139,7 @@ def main() -> None:
         # Calculate metrics
         start_time = time.time()
 
-        size_score, size_latency = get_size_score(url, url_type)
+        size_dict, size_latency = get_size_score(url, url_type)
         license_score, license_latency = get_license_score(url, url_type)
         dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
         code_quality, code_quality_latency = get_code_quality(url, url_type)
@@ -142,6 +147,11 @@ def main() -> None:
         bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
         ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
         dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0 # need a function for this
+
+        size_score = 0.0
+        for key in size_dict:
+            size_score += size_dict[key]
+        size_score /= len(size_dict)
 
         # net score
         net_score = 0.15 * size_score + \
