@@ -135,7 +135,7 @@ def _ask_llm(readme: str, tree: str) -> float:
     return 0.0
 
 # Public API
-def ramp_up(url: str) -> Tuple[float, int]:
+def get_ramp_up(url: str, url_type: str) -> Tuple[float, int]:
     """
     LLM-only ramp-up metric.
     - Clones repo
@@ -158,13 +158,13 @@ def ramp_up(url: str) -> Tuple[float, int]:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-# Local test main
-if __name__ == "__main__":
-    load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
-    token = os.getenv("HF_TOKEN")
-    model = os.getenv("RAMPUP_LLM_MODEL")
-    if not token or not model:
-        print("Set HF_TOKEN and RAMPUP_LLM_MODEL before running this module directly.")
-    url = f"https://hf:{token}@huggingface.co/bert-base-uncased" if token else "https://huggingface.co/bert-base-uncased"
-    s, ms = ramp_up(url)
-    print(f"Ramp-Up (LLM-only) score: {s:.3f}, latency: {ms} ms")
+# # Local test main
+# if __name__ == "__main__":
+#     load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
+#     token = os.getenv("HF_TOKEN")
+#     model = os.getenv("RAMPUP_LLM_MODEL")
+#     if not token or not model:
+#         print("Set HF_TOKEN and RAMPUP_LLM_MODEL before running this module directly.")
+#     url = f"https://hf:{token}@huggingface.co/bert-base-uncased" if token else "https://huggingface.co/bert-base-uncased"
+#     s, ms = ramp_up(url)
+#     print(f"Ramp-Up (LLM-only) score: {s:.3f}, latency: {ms} ms")

@@ -223,7 +223,7 @@ def _normalize_score(bus_factor: int, authors_of_file: Dict[str, Set[str]]) -> f
     denom = max(1, len(active_authors))
     return min(1.0, bus_factor / denom)
 
-def bus_factor(url: str, since_days: int = SINCE_DAYS_DEFAULT) -> Tuple[float, int]:
+def get_bus_factor(url: str, url_type: str, since_days: int = SINCE_DAYS_DEFAULT) -> Tuple[float, int]:
     """
     Clone the repo at `url`, compute Bus Factor score normalized to [0,1],
     and return (score, latency_ms).
@@ -255,19 +255,19 @@ def bus_factor(url: str, since_days: int = SINCE_DAYS_DEFAULT) -> Tuple[float, i
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-# Temporary main function to run locally
-if __name__ == "__main__":
-    print("Starting Bus Factor computation...")
-    load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
-    token = os.getenv("HF_TOKEN")
-    if not token:
-        print("HF_TOKEN not found; cloning public repos only.")
-    else:
-        print("Loaded token starts with:", token[:10])
+# # Temporary main function to run locally
+# if __name__ == "__main__":
+#     print("Starting Bus Factor computation...")
+#     load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
+#     token = os.getenv("HF_TOKEN")
+#     if not token:
+#         print("HF_TOKEN not found; cloning public repos only.")
+#     else:
+#         print("Loaded token starts with:", token[:10])
 
-    # Example (Hugging Face model repo)
-    url = f"https://hf:{token}@huggingface.co/bert-base-uncased" if token else "https://huggingface.co/bert-base-uncased"
-    # f"https://hf:{token}@huggingface.co/google/gemma-3-270m/tree/main"
-    # url = f"https://hf:{token}@huggingface.co/google/gemma-3-270m/tree/main" if token else "https://huggingface.co/google/gemma-3-270m/tree/main"
-    s, ms = bus_factor(url)
-    print(f"Bus Factor score: {s:.3f}, latency: {ms} ms")
+#     # Example (Hugging Face model repo)
+#     url = f"https://hf:{token}@huggingface.co/bert-base-uncased" if token else "https://huggingface.co/bert-base-uncased"
+#     # f"https://hf:{token}@huggingface.co/google/gemma-3-270m/tree/main"
+#     # url = f"https://hf:{token}@huggingface.co/google/gemma-3-270m/tree/main" if token else "https://huggingface.co/google/gemma-3-270m/tree/main"
+#     s, ms = bus_factor(url)
+#     print(f"Bus Factor score: {s:.3f}, latency: {ms} ms")
