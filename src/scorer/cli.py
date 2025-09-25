@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from typing import List
 from pathlib import Path
+import time
 import sys, os
 from utils.logging import setup_logging, set_run_id, get_logger, set_url
 from url_handler.base import classify_url
@@ -87,11 +88,16 @@ def main() -> None:
     run_id = set_run_id(args.run_id)
     log = get_logger("cli")
 
+    start_ns = time.perf_counter_ns()
+    log.info("run started", extra={"phase": "run", "function": "main", "run_id": run_id})
+
     # open URL file
     try:
         urls = read_urls(args.url_file)
+        log.info("read urls", extra={"phase": "run", "count": len(urls), "file": str(args.url_file)})
     except Exception as e:
         print(f"Error reading URL file {e}", file = sys.stderr)
+        log.exception("failed to read url file", extra={"phase": "run"})
         sys.exit(1)
     
     # show that URLs are being processed
@@ -100,8 +106,17 @@ def main() -> None:
     # Classify URLs by type (model, dataset, code)
     classifications = {}
     for url in urls:
-        url_type = classify_url(url)
+        log.info("processing url", extra={"phase": "controller", "url": url})
+        try:
+            url_type = classify_url(url)
+            log.info("classified", extra={"phase": "controller", "type": url_type})
+        except Exception:
+            log.exception("classification failed", extra={"phase": "controller"})
+            print(f"{url} -> ERROR: classification failed")
+            continue
+
         if url_type == "unknown":
+            log.warning("unknown url type", extra={"phase": "controller"})
             print(f"Error: Unknown URL type for {urls}", file = sys.stderr)
             sys.exit(1)
         if url_type == "model":
@@ -120,10 +135,17 @@ def main() -> None:
         dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
         code_quality, code_quality_latency = get_code_quality(url, url_type)
         performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
+
+        
         
     # TEMPORARY OUTPUT, REPLACE LATER
     for url in urls:
+        netscore = 0.0
         print(f"{url} -> NetScore: 0.0")
+        log.info("url done", extra={"phase": "controller", "url": url, "net_score": netscore})
+
+    dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
+    log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
 
 if __name__  == "__main__":
     main()
