@@ -74,8 +74,9 @@ def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
       - unique contributors per file
       - first author (creator) per file
     """
-    since_dt = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=since_days)
-    since_arg = since_dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+    since_dt = dt.datetime.utcnow() - dt.timedelta(days=since_days)
+    since_arg = since_dt.strftime("%Y-%m-%d")  # e.g., "2024-09-25"
+
 
     dl: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
     total_by_file: Dict[str, int] = defaultdict(int)
@@ -83,6 +84,10 @@ def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
     creators: Dict[str, str] = {}
 
     commits = list(repo.iter_commits("HEAD", since=since_arg))
+    if not commits:
+        # fallback: use full history if window has nothing
+        commits = list(repo.iter_commits("HEAD"))
+
     for c in commits:
         # Prefer email; fall back to name if email missing
         author = (c.author.email or c.author.name or "unknown").strip().lower()
@@ -263,6 +268,6 @@ if __name__ == "__main__":
     # Example (Hugging Face model repo)
     url = f"https://hf:{token}@huggingface.co/bert-base-uncased" if token else "https://huggingface.co/bert-base-uncased"
     # f"https://hf:{token}@huggingface.co/google/gemma-3-270m/tree/main"
-    # url = f"https://hf:{token}@huggingface.co/google/gemma-3-270m/tree" if token else "https://huggingface.co/google/gemma-3-270m/tree/main"
+    # url = f"https://hf:{token}@huggingface.co/google/gemma-3-270m/tree/main" if token else "https://huggingface.co/google/gemma-3-270m/tree/main"
     s, ms = bus_factor(url)
     print(f"Bus Factor score: {s:.3f}, latency: {ms} ms")
