@@ -140,27 +140,25 @@ def main() -> None:
         # Calculate metrics
         start_time = time.time()
 
-        size_dict, size_latency = get_size_score(url, url_type) 
+        size_dict, size_latency = get_size_score(url, url_type)
         license_score, license_latency = get_license_score(url, url_type)
         dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
         code_quality, code_quality_latency = get_code_quality(url, url_type)
         performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
         bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
         ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
-        dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0 # need a function for this
+        dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0
 
+        # Ensure None values are set to 0
+        license_score = 0.0 if license_score is None else license_score
+        dataset_quality_score = 0.0 if dataset_quality_score is None else dataset_quality_score
+        code_quality = 0.0 if code_quality is None else code_quality
+
+        # Compute net score
         size_score = 0.0
-        if size_dict is not None:
-            for key in size_dict:
-                size_score += size_dict[key]
-            size_score /= len(size_dict)
+        if size_dict:
+            size_score = sum(size_dict.values()) / len(size_dict)
 
-        if license_score is None:
-            license_score = 0.0
-        if dataset_quality_score is None:
-            dataset_quality_score = 0.0
-
-        # net score calculation
         net_score = 0.15 * size_score + \
                     0.15 * license_score + \
                     0.10 * ramp_up + \
@@ -169,10 +167,11 @@ def main() -> None:
                     0.10 * code_quality + \
                     0.15 * performance_claims + \
                     0.10 * dataset_and_code_score
-                           
-        net_score_latency = start_time - time.time()
 
-        # build NDJSON output
+        # Compute net score latency in milliseconds
+        net_score_latency = int((time.time() - start_time) * 1000)
+
+        # Build NDJSON output
         output = {
             "name": url.split("/")[-1],
             "category": url_type.upper(),
@@ -186,7 +185,7 @@ def main() -> None:
             "performance_claims_latency": performance_claims_latency,
             "license": round(license_score, 2),
             "license_latency": license_latency,
-            "size_score": {size_score},
+            "size_score": {k: round(v, 2) for k, v in size_dict.items()} if size_dict else {},
             "size_score_latency": size_latency,
             "dataset_and_code_score": round(dataset_and_code_score, 2),
             "dataset_and_code_score_latency": dataset_and_code_score_latency,
@@ -196,16 +195,31 @@ def main() -> None:
             "code_quality_latency": code_quality_latency
         }
 
-        print(json.dumps(output))  # NDJSON line
+        # Print one JSON object per line (NDJSON)
+        print(json.dumps(output))
+
+    #     size_dict, size_latency = get_size_score(url, url_type) 
+    #     license_score, license_latency = get_license_score(url, url_type)
+    #     dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
+    #     code_quality, code_quality_latency = get_code_quality(url, url_type)
+    #     performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
+    #     bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
+    #     ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
+    #     dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0 # need a function for this
+
+    #     if size_dict is not None:
+    #         for key in size_dict:
+    #             size_score += size_dict[key]
+    #         size_score /= len(size_dict)
         
-    # TEMPORARY OUTPUT, REPLACE LATER
-    for url in urls:
-        netscore = 0.0
-        print(f"{url} -> NetScore: 0.0")
-        log.info("url done", extra={"phase": "controller", "url": url, "net_score": netscore})
+    # # TEMPORARY OUTPUT, REPLACE LATER
+    # for url in urls:
+    #     netscore = 0.0
+    #     print(f"{url} -> NetScore: 0.0")
+    #     log.info("url done", extra={"phase": "controller", "url": url, "net_score": netscore})
 
-    dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
-    log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
-
+    # dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
+    # log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
+    
 if __name__  == "__main__":
     main()
