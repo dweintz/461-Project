@@ -8,11 +8,10 @@ import tempfile
 import time
 import subprocess
 from git import Repo
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 import ast
 from dotenv import load_dotenv
 from pathlib import Path
-import json
 import re
 
 # function to run radon, a Python tool that analyzes source code complexity and maintainability
@@ -40,25 +39,29 @@ def run_radon(path: str) -> float:
             scores.append(score_dict.get(score[0], 0.0))
     if scores:
         final_score = sum(scores) / len(scores)
+        print("Successfully calculated radon score.")
     else:
         final_score = 0.0  
     
     return final_score
     
 # function to run lizard, a multi-language code analysis tool that analyzes function complexity
-def run_lizard(path: str) -> Dict:
+def run_lizard(path: str) -> Optional[Dict]:
     print("Files in path:", os.listdir(path))
 
     try:
         result = subprocess.run(
             ["lizard", path],
-            capture_output=True,
-            text=True,
-            check=True
+            capture_output = True,
+            text = True
         )
-    except subprocess.CalledProcessError as e:
-        print(f"Lizard failed:\n{e.stderr}")
-        exit(1)
+    except Exception as e:
+        print(f"Failed to run Lizard: {e}")
+        return None
+
+    if result.returncode != 0:
+        print("Lizard failed with non-zero exit code.")
+        return None
 
     # find the last summary row using regex
     total_row = None
@@ -168,99 +171,117 @@ def docstring_ratio(path: str) -> float:
     score = documented / total
     return score
 
-# # function to analyze the quality of the code
-# def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
-#     start_time = time.time()
-#     temp_dir = tempfile.mkdtemp()
-
-#     try:
-#         print("Cloning repo from Hugging Face...")
-#         Repo.clone_from(url, temp_dir)
-#         print("Repo successfully cloned.")
-
-#         # first reliability check - check for the word test in the files
-#         print("Checking reliability...")
-#         print("     Checking for keyword 'test'...")
-#         reliability = 0.0
-#         for root, _, files in os.walk(temp_dir):
-#             for file in files:
-#                 if "test" in file.lower():
-#                     reliability = 0.7
-#                     break
+# function to analyze the quality of the code
+def _check_code_repo_quality(code_url: str) -> float:
+    start_time = time.time()
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        # clone the repo
+        print("Cloning repo from GitHub...")
+        try:
+            Repo.clone_from(code_url, temp_dir)
+            print("Repo cloned.")
+        except Exception as e:
+            print(f"Cannot clone repo: {e}")
+            exit(1)
         
-#         # second reliability check - check for testing frameworks
-#         print("     Checking for testing frameworks...")
-#         file_names = " ".join(os.listdir(temp_dir))
-#         if any(x in file_names.lower() for x in ["pytest", "unittest", "mocha", "jest"]):
-#             reliability = 1.0
+        # first reliability check - check for the word test in the files
+        print("Checking reliability...")
+        print("     Checking for keyword 'test'...")
+        reliability = 0.0
+        for root, _, files in os.walk(temp_dir):
+            for file in files:
+                if "test" in file.lower():
+                    reliability = 0.7
+                    break
+        
+        # second reliability check - check for testing frameworks
+        print("     Checking for testing frameworks...")
+        file_names = " ".join(os.listdir(temp_dir))
+        if any(x in file_names.lower() for x in ["pytest", "unittest", "mocha", "jest"]):
+            reliability = 1.0
 
-#         # check extendability (number of files and classes, complexity, multi-language use, etc)
-#         print("Checking extendability...")
-#         print("     Check radon score...")
-#         radon_score = run_radon(temp_dir)
-#         print("     Check lizard score...")
-#         lizard_score = run_lizard(temp_dir)
-#         extendibility = max(radon_score, lizard_score)
+        # check complexity (number of files and classes, complexity, multi-language use, etc)
+        print("Checking extendability...")
+        print("     Check radon score...")
+        radon_score = run_radon(temp_dir)
+        print("     Check lizard score...")
+        lizard_totals = run_lizard(temp_dir)
+        lizard_score = 0.0
+        if lizard_totals:
+            lizard_score = score_from_lizard_totals(lizard_totals)
+        complexity = max(radon_score, lizard_score)
 
-#         # check testabilty (CI/CD configs)
-#         print("Checking extendability...")
-#         testability = 0.0
-#         for ci in [".github", ".gitlab-ci.yml", "azure-pipelines.yml"]:
-#             if os.path.exists(os.path.join(temp_dir, ci)):
-#                 testability = 1.0
-#                 break
+        # check testabilty (CI/CD configs)
+        print("Checking extendability...")
+        testability = 0.0
+        for ci in [".github", ".gitlab-ci.yml", "azure-pipelines.yml"]:
+            if os.path.exists(os.path.join(temp_dir, ci)):
+                testability = 1.0
+                break
 
-#         # check portability (check enviornment files)
-#         print("Checking portability...")
-#         portability = 0.0
-#         if os.path.exists(os.path.join(temp_dir, "Dockerfile")):
-#             portability += 0.5
-#         if os.path.exists(os.path.join(temp_dir, "requirements.txt")) or \
-#            os.path.exists(os.path.join(temp_dir, "environment.yml")):
-#             portability += 0.5
+        # check portability (check enviornment files)
+        print("Checking portability...")
+        portability = 0.0
+        if os.path.exists(os.path.join(temp_dir, "Dockerfile")):
+            portability += 0.5
+        if os.path.exists(os.path.join(temp_dir, "requirements.txt")) or \
+           os.path.exists(os.path.join(temp_dir, "environment.yml")):
+            portability += 0.5
 
-#         # reusability (check for README)
-#         print("Checking reusability...")
-#         reusability = max(docstring_ratio(temp_dir), 0.5 if os.path.exists(os.path.join(temp_dir, "README.md")) else 0)
+        # reusability (check for README)
+        print("Checking reusability...")
+        reusability = max(docstring_ratio(temp_dir), 0.5 if os.path.exists(os.path.join(temp_dir, "README.md")) else 0)
 
-#         # compute weighted score
-#         print("Computing weighted score...")
-#         final_score = (
-#             reliability * 0.35 +
-#             extendibility * 0.30 +
-#             testability * 0.1 +
-#             portability * 0.1 +
-#             reusability * 0.15
-#         )
+        # compute weighted score
+        print("Computing weighted score...")
+        final_score = (
+            complexity * 0.70 +
+            reliability * 0.05 +
+            testability * 0.05 +
+            portability * 0.1 +
+            reusability * 0.1
+        )
 
-#         latency = int((time.time() - start_time) * 1000)
-#         return min(1.0, final_score), latency
+        latency = int((time.time() - start_time) * 1000)
+        return min(1.0, final_score)
 
-#     # remove the local copy of the repo
-#     finally:
-#         shutil.rmtree(temp_dir, ignore_errors = True)
+    # remove the local copy of the repo
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors = True)
 
-# # TEMPORARY MAIN FUNCTION
-# if __name__ == "__main__":
-#     print("Starting program...")
-#     load_dotenv(dotenv_path = Path(__file__).resolve().parents[3] / ".env")
-#     token = os.getenv("HF_TOKEN")
-#     if not token:
-#         raise RuntimeError("HF_TOKEN not found")
-#     print("Loaded token starts with:", token[:10])
+# function to get code quality score based on URL type
+def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
+    '''
+    Function to get code quality if URL is a GitHub link
+    '''
 
-#     url = f"https://hf:{token}@huggingface.co/bert-base-uncased"
-#     url_type = 'model'
-#     score, latency = get_code_quality(url, url_type)
-#     print(f"Code quality score: {score}, latency: {latency} ms")
+    start_time = time.time()
+    score = 0.0
 
+    if url_type == 'code':
+        # clone GitHub repo and check readme for performance claims
+        score = _check_code_repo_quality(url)
+    
+    latency = int((time.time() - start_time) * 1000)
+    
+    return score, latency
 
+# TEMPORARY MAIN FUNCTION
+if __name__ == "__main__":
+    print("Starting code quality check...")
+    load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
+    hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+        raise RuntimeError("HF_TOKEN not found") 
+    print("Loaded token starts with:", hf_token[:10])
 
-
-
-
-
-
+    # code URL test
+    url_code = "https://github.com/google-research/bert"
+    url_type_code = "code"
+    score, latency = get_code_quality(url_code, url_type_code)
+    print(f"Code quality: Score = {score:.2f}, Latency = {latency}ms")
 
 
 
