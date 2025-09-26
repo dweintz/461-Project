@@ -17,6 +17,8 @@ import re
 
 # function to run radon, a Python tool that analyzes source code complexity and maintainability
 def run_radon(path: str) -> float:
+    print("Files in path:", os.listdir(path))
+    
     try:
         result = subprocess.run(
             ["radon", "mi", "-s", path],
@@ -36,8 +38,6 @@ def run_radon(path: str) -> float:
         if " - " in line:
             score = line.split(" -")[-1].strip()
             scores.append(score_dict.get(score[0], 0.0))
-            print(score)
-            print(score_dict.get(score[0], 0.0))
     if scores:
         final_score = sum(scores) / len(scores)
     else:
@@ -45,22 +45,10 @@ def run_radon(path: str) -> float:
     
     return final_score
     
-# path = "461-Project/src/scorer/metrics"
-# print("Files in path:", os.listdir(path))
-# run_radon(path)
-
-
-# NLOC = non-comment lines of code
-# CNN = cyclomatic complexity number - measures number of paths through a function
-# token = number of syntactic tokens (operators, keywords, identifiers, etc)
-# PARAM = number of parameters
-# length = total lines of code, including comments
-# location = path where function is defined
-
-
-
 # function to run lizard, a multi-language code analysis tool that analyzes function complexity
 def run_lizard(path: str) -> Dict:
+    print("Files in path:", os.listdir(path))
+
     try:
         result = subprocess.run(
             ["lizard", path],
@@ -71,8 +59,6 @@ def run_lizard(path: str) -> Dict:
     except subprocess.CalledProcessError as e:
         print(f"Lizard failed:\n{e.stderr}")
         exit(1)
-
-    print(result.stdout)
 
     # find the last summary row using regex
     total_row = None
@@ -91,6 +77,13 @@ def run_lizard(path: str) -> Dict:
         print("Unexpected totals format:", total_row)
         exit(1)
 
+    # NLOC = non-comment lines of code
+    # CNN = cyclomatic complexity number - measures number of paths through a function
+    # token = number of syntactic tokens (operators, keywords, identifiers, etc)
+    # PARAM = number of parameters
+    # length = total lines of code, including comments
+    # location = path where function is defined
+
     # put values into a dict
     totals = {
         "Total NLOC": float(parts[0]),
@@ -104,33 +97,76 @@ def run_lizard(path: str) -> Dict:
     }
     return totals
 
+# function to calculate final score from dictionary returned by run_lizard()
+def score_from_lizard_totals(totals: dict) -> float:
+    if not totals:
+        return 0.0
 
-path = "461-Project/src/scorer/metrics"
-print("Files in path:", os.listdir(path))
-# run_radon(path)
-totals = run_lizard(path)
-print(totals)
+    # metric 1: Cyclomatic complexity - measures number of paths through a function
+    # decrease score as number of paths increase
+    avg_ccn = totals.get("Avg CCN", 0)
+    if avg_ccn <= 5:
+        ccn_score = 1.0
+    elif avg_ccn <= 10:
+        ccn_score = 0.8
+    elif avg_ccn <= 20:
+        ccn_score = 0.5
+    else:
+        ccn_score = 0.2
 
+    # metric 2: Average NLOC (function size) - non-comment lines of code
+    # reward shorter functions - often easier to read
+    avg_nloc = totals.get("Avg NLOC", 0)
+    if avg_nloc <= 30:
+        nloc_score = 1.0
+    elif avg_nloc <= 40:
+        nloc_score = 0.8
+    elif avg_nloc <= 100:
+        nloc_score = 0.5
+    else:
+        nloc_score = 0.2
 
-# # function to count how many Python functions or classes have docstrings
-# def docstring_ratio(path: str) -> float:
-#     total = 0
-#     documented = 0
+    # metric 3: Warnings
+    # decrease with increasing warnings
+    warnings = totals.get("Warning Count", 0)
+    if warnings == 0:
+        warning_score = 1.0
+    elif warnings <= 2:
+        warning_score = 0.7
+    elif warnings <= 5:
+        warning_score = 0.4
+    else:
+        warning_score = 0.1
 
-#     for root, _, files in os.walk(path):
-#         for file in files:
-#             if file.endswith(".py"):
-#                 with open(os.path.join(root, file), "r", encoding = "utf-8", errors = "ignore") as fh:
-#                     try:
-#                         tree = ast.parse(fh.read())
-#                         for node in ast.walk(tree):
-#                             if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
-#                                 total += 1
-#                                 if ast.get_docstring(node):
-#                                     documented += 1
-#                     except Exception:
-#                         continue
-#     return documented / total if total > 0 else 0.0
+    # define weighted score
+    weights = [0.5, 0.3, 0.2]
+    components = [ccn_score, nloc_score, warning_score]
+    final_score = sum(w * c for w, c in zip(weights, components)) / sum(weights)
+
+    return final_score
+
+# function to count how many Python functions or classes have docstrings
+def docstring_ratio(path: str) -> float:
+    total = 0
+    documented = 0
+    score = 0
+
+    for root, _, files in os.walk(path):
+        for file in files:
+            if file.endswith(".py"):
+                with open(os.path.join(root, file), "r", encoding = "utf-8", errors = "ignore") as fh:
+                    try:
+                        tree = ast.parse(fh.read())
+                        for node in ast.walk(tree):
+                            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                                total += 1
+                                if ast.get_docstring(node):
+                                    documented += 1
+                    except Exception:
+                        continue
+
+    score = documented / total
+    return score
 
 # # function to analyze the quality of the code
 # def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
@@ -217,3 +253,27 @@ print(totals)
 #     url_type = 'model'
 #     score, latency = get_code_quality(url, url_type)
 #     print(f"Code quality score: {score}, latency: {latency} ms")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# path = "src/scorer/metrics"
+# radon_score = run_radon(path)
+
+# totals = run_lizard(path)
+# lizard_score = score_from_lizard_totals(totals)
+
+# docstring_score = docstring_ratio(path)
+
+# print(f"Radon score: {radon_score}, Lizard score: {lizard_score}, Docstring score: {docstring_score}")
