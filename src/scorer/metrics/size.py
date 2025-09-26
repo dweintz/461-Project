@@ -10,6 +10,7 @@ import time
 from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 from .base import get_repo_id
+from typing import Tuple, Dict, Optional
 
 load_dotenv()
 HF_TOKEN = os.getenv("HF_Token")
@@ -40,7 +41,7 @@ def score_for_hardware(total_bytes: int, limit: int) -> float:
         return max(0, 1 - math.log10(ratio))
 
 # Pass in the url and its type from the URL handler cli code
-def get_size_score(url: str, url_type: str) -> float:
+def get_size_score(url: str, url_type: str) -> Tuple[Optional[Dict[str, float]], int]:
     start_time = time.time()
 
     # Get repo id

@@ -8,6 +8,7 @@ from typing import List
 from pathlib import Path
 import time
 import sys, os
+import json
 from utils.logging import setup_logging, set_run_id, get_logger, set_url
 from url_handler.base import classify_url
 from url_handler.model import handle_model_url
@@ -139,7 +140,7 @@ def main() -> None:
         # Calculate metrics
         start_time = time.time()
 
-        size_dict, size_latency = get_size_score(url, url_type)
+        size_dict, size_latency = get_size_score(url, url_type) 
         license_score, license_latency = get_license_score(url, url_type)
         dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
         code_quality, code_quality_latency = get_code_quality(url, url_type)
@@ -149,11 +150,17 @@ def main() -> None:
         dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0 # need a function for this
 
         size_score = 0.0
-        for key in size_dict:
-            size_score += size_dict[key]
-        size_score /= len(size_dict)
+        if size_dict is not None:
+            for key in size_dict:
+                size_score += size_dict[key]
+            size_score /= len(size_dict)
 
-        # net score
+        if license_score is None:
+            license_score = 0.0
+        if dataset_quality_score is None:
+            dataset_quality_score = 0.0
+
+        # net score calculation
         net_score = 0.15 * size_score + \
                     0.15 * license_score + \
                     0.10 * ramp_up + \
@@ -164,6 +171,32 @@ def main() -> None:
                     0.10 * dataset_and_code_score
                            
         net_score_latency = start_time - time.time()
+
+        # build NDJSON output
+        output = {
+            "name": url.split("/")[-1],
+            "category": url_type.upper(),
+            "net_score": round(net_score, 2),
+            "net_score_latency": net_score_latency,
+            "ramp_up_time": round(ramp_up, 2),
+            "ramp_up_time_latency": ramp_up_latency,
+            "bus_factor": round(bus_factor, 2),
+            "bus_factor_latency": bus_factor_latency,
+            "performance_claims": round(performance_claims, 2),
+            "performance_claims_latency": performance_claims_latency,
+            "license": round(license_score, 2),
+            "license_latency": license_latency,
+            "size_score": {size_score},
+            "size_score_latency": size_latency,
+            "dataset_and_code_score": round(dataset_and_code_score, 2),
+            "dataset_and_code_score_latency": dataset_and_code_score_latency,
+            "dataset_quality": round(dataset_quality_score, 2),
+            "dataset_quality_latency": dataset_quality_latency,
+            "code_quality": round(code_quality, 2),
+            "code_quality_latency": code_quality_latency
+        }
+
+        print(json.dumps(output))  # NDJSON line
         
     # TEMPORARY OUTPUT, REPLACE LATER
     for url in urls:

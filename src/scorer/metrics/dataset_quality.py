@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 from .base import get_repo_id
 import math
+from typing import Tuple, Optional
+
 
 load_dotenv()
 HF_TOKEN = os.getenv("HF_Token")
@@ -24,7 +26,7 @@ def normalize(value: int, target: int) -> float:
         return 0.0
     return min(1.0, math.log10(value + 1) / math.log10(target + 1))
 
-def get_dataset_quality_score(url: str, url_type: str) -> float:
+def get_dataset_quality_score(url: str, url_type: str) -> Tuple[Optional[float], int]:
     start_time = time.time()
 
     if url_type != "dataset":

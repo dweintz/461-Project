@@ -9,6 +9,7 @@ import time
 from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 from .base import get_repo_id
+from typing import Tuple, Optional
 
 load_dotenv()
 HF_TOKEN = os.getenv("HF_Token")
@@ -44,7 +45,7 @@ def is_compatible(license: str) -> bool:
 
     return normalized in compatible_licenses
 
-def get_license_score(url: str, url_type: str) -> int:
+def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
     start_time = time.time()
 
     # Get repo id
