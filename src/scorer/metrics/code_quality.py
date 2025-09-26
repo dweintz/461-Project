@@ -14,10 +14,11 @@ from dotenv import load_dotenv
 from pathlib import Path
 import re
 
-# function to run radon, a Python tool that analyzes source code complexity and maintainability
 def run_radon(path: str) -> float:
-    print("Files in path:", os.listdir(path))
-    
+    '''
+    Function to run radon, a Python tool that analyzes source code complexity and maintainability.
+    '''
+
     try:
         result = subprocess.run(
             ["radon", "mi", "-s", path],
@@ -39,16 +40,16 @@ def run_radon(path: str) -> float:
             scores.append(score_dict.get(score[0], 0.0))
     if scores:
         final_score = sum(scores) / len(scores)
-        print("Successfully calculated radon score.")
     else:
         final_score = 0.0  
     
     return final_score
     
-# function to run lizard, a multi-language code analysis tool that analyzes function complexity
 def run_lizard(path: str) -> Optional[Dict]:
-    print("Files in path:", os.listdir(path))
-
+    '''
+    Function to run lizard, a multi-language code analysis tool that analyzes function complexity.
+    '''
+  
     try:
         result = subprocess.run(
             ["lizard", path],
@@ -72,13 +73,13 @@ def run_lizard(path: str) -> Optional[Dict]:
     
     if not total_row:
         print("Could not find totals in Lizard output")
-        exit(1)
+        return None
 
     # extract numeric values from the totals row
     parts = total_row.split()
     if len(parts) < 8:
         print("Unexpected totals format:", total_row)
-        exit(1)
+        return None
 
     # NLOC = non-comment lines of code
     # CNN = cyclomatic complexity number - measures number of paths through a function
@@ -100,8 +101,11 @@ def run_lizard(path: str) -> Optional[Dict]:
     }
     return totals
 
-# function to calculate final score from dictionary returned by run_lizard()
 def score_from_lizard_totals(totals: dict) -> float:
+    '''
+    Function to calculate final score from dictionary returned by run_lizard().
+    '''
+
     if not totals:
         return 0.0
 
@@ -147,9 +151,11 @@ def score_from_lizard_totals(totals: dict) -> float:
     final_score = sum(w * c for w, c in zip(weights, components)) / sum(weights)
 
     return final_score
-
-# function to count how many Python functions or classes have docstrings
+ 
 def docstring_ratio(path: str) -> float:
+    '''
+    Function to count how many Python functions or classes have docstrings.
+    '''
     total = 0
     documented = 0
     score = 0
@@ -171,42 +177,37 @@ def docstring_ratio(path: str) -> float:
     score = documented / total
     return score
 
-# function to analyze the quality of the code
 def _check_code_repo_quality(code_url: str) -> float:
+    '''
+    Function to analyze the quality of the code.
+    '''
+
     start_time = time.time()
     temp_dir = tempfile.mkdtemp()
     
     try:
         # clone the repo
-        print("Cloning repo from GitHub...")
         try:
             Repo.clone_from(code_url, temp_dir)
-            print("Repo cloned.")
         except Exception as e:
-            print(f"Cannot clone repo: {e}")
+            print(f"Cannot clone repo for code quality check: {e}")
             exit(1)
         
         # first reliability check - check for the word test in the files
-        print("Checking reliability...")
-        print("     Checking for keyword 'test'...")
         reliability = 0.0
-        for root, _, files in os.walk(temp_dir):
+        for _, _, files in os.walk(temp_dir):
             for file in files:
                 if "test" in file.lower():
                     reliability = 0.7
                     break
         
         # second reliability check - check for testing frameworks
-        print("     Checking for testing frameworks...")
         file_names = " ".join(os.listdir(temp_dir))
         if any(x in file_names.lower() for x in ["pytest", "unittest", "mocha", "jest"]):
             reliability = 1.0
 
         # check complexity (number of files and classes, complexity, multi-language use, etc)
-        print("Checking extendability...")
-        print("     Check radon score...")
         radon_score = run_radon(temp_dir)
-        print("     Check lizard score...")
         lizard_totals = run_lizard(temp_dir)
         lizard_score = 0.0
         if lizard_totals:
@@ -214,7 +215,6 @@ def _check_code_repo_quality(code_url: str) -> float:
         complexity = max(radon_score, lizard_score)
 
         # check testabilty (CI/CD configs)
-        print("Checking extendability...")
         testability = 0.0
         for ci in [".github", ".gitlab-ci.yml", "azure-pipelines.yml"]:
             if os.path.exists(os.path.join(temp_dir, ci)):
@@ -222,7 +222,6 @@ def _check_code_repo_quality(code_url: str) -> float:
                 break
 
         # check portability (check enviornment files)
-        print("Checking portability...")
         portability = 0.0
         if os.path.exists(os.path.join(temp_dir, "Dockerfile")):
             portability += 0.5
@@ -230,12 +229,10 @@ def _check_code_repo_quality(code_url: str) -> float:
            os.path.exists(os.path.join(temp_dir, "environment.yml")):
             portability += 0.5
 
-        # reusability (check for README)
-        print("Checking reusability...")
+        # reusability (check for README and docstrings)
         reusability = max(docstring_ratio(temp_dir), 0.5 if os.path.exists(os.path.join(temp_dir, "README.md")) else 0)
 
         # compute weighted score
-        print("Computing weighted score...")
         final_score = (
             complexity * 0.70 +
             reliability * 0.05 +
@@ -244,17 +241,15 @@ def _check_code_repo_quality(code_url: str) -> float:
             reusability * 0.1
         )
 
-        latency = int((time.time() - start_time) * 1000)
         return min(1.0, final_score)
 
     # remove the local copy of the repo
     finally:
         shutil.rmtree(temp_dir, ignore_errors = True)
 
-# function to get code quality score based on URL type
 def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
     '''
-    Function to get code quality if URL is a GitHub link
+    Function to get code quality if URL is a GitHub link.
     '''
 
     start_time = time.time()
@@ -282,19 +277,3 @@ if __name__ == "__main__":
     url_type_code = "code"
     score, latency = get_code_quality(url_code, url_type_code)
     print(f"Code quality: Score = {score:.2f}, Latency = {latency}ms")
-
-
-
-
-
-
-
-# path = "src/scorer/metrics"
-# radon_score = run_radon(path)
-
-# totals = run_lizard(path)
-# lizard_score = score_from_lizard_totals(totals)
-
-# docstring_score = docstring_ratio(path)
-
-# print(f"Radon score: {radon_score}, Lizard score: {lizard_score}, Docstring score: {docstring_score}")
