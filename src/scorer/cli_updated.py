@@ -83,6 +83,8 @@ def main() -> None:
     # get CLI arguments
     args = parse_args()
 
+    url_file = args.url_file.resolve()
+
     # Configure the log destination first
     if args.log_file:
         os.environ["LOG_FILE"] = str(args.log_file)
