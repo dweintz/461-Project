@@ -61,7 +61,7 @@ def run_lizard(path: str) -> Optional[Dict]:
         return None
 
     if result.returncode != 0:
-        print("Lizard failed with non-zero exit code.")
+        # print("Lizard failed with non-zero exit code.")
         return None
 
     # find the last summary row using regex

@@ -105,7 +105,7 @@ def main() -> None:
         sys.exit(1)
     
     # show that URLs are being processed
-    print(f"Processing {len(urls)} URLs...")
+    # print(f"Processing {len(urls)} URLs...")
 
     # Classify URLs by type (model, dataset, code)
     classifications = []
@@ -247,10 +247,11 @@ def main() -> None:
             # f.write(f"{json.dumps(output)}\n")
 
             # Print one JSON object per line (NDJSON)
-            print(json.dumps(output))
+            print(json.dumps(output, separators=(',', ':')))
 
     dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
     log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
+    exit(0)
     
 if __name__  == "__main__":
     main()

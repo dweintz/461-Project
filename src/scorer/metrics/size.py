@@ -12,6 +12,10 @@ from huggingface_hub import HfApi, login
 from .base import get_repo_id
 from typing import Tuple, Dict, Optional
 
+# suppress logging from Hugging Face
+import logging
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+
 load_dotenv()
 HF_TOKEN = os.getenv("HF_Token")
 HF_API = HfApi()

@@ -11,6 +11,10 @@ from huggingface_hub import HfApi, login
 from .base import get_repo_id
 from typing import Tuple, Optional
 
+# suppress logging from Hugging Face 
+import logging
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+
 load_dotenv()
 HF_TOKEN = os.getenv("HF_Token")
 HF_API = HfApi()
@@ -27,7 +31,7 @@ compatible_licenses = [
 # Normalize license names from HF/GitHub API
 def is_compatible(license: str) -> bool:
     if not license:
-        print("No license found")
+        # print("No license found")
         return False
 
     normalized = license.lower().strip()
@@ -70,7 +74,7 @@ def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
         license_info = requests.get(f"{base_url}/license").json()
         license = license_info.get("license", {}).get("name")
     
-    print(f"License for {url} is {license}")
+    # print(f"License for {url} is {license}")
 
     # Check if it's compatible with LGPLv2.1
     normalized = is_compatible(license)
