@@ -21,6 +21,7 @@ from metrics.code_quality import get_code_quality
 from metrics.performance_claims import get_performance_claims
 from metrics.rampup import get_ramp_up
 from metrics.busfactor import get_bus_factor
+from metrics.dataset_and_code import get_dataset_and_code_score
 
 # ONCE THEY ARE CODED, WILL IMPORT URL HANDLERS HERE AND CALL THEM LATER
 
@@ -147,12 +148,13 @@ def main() -> None:
         performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
         bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
         ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
-        dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0
+        dataset_and_code_score, dataset_and_code_score_latency = get_dataset_and_code_score(url, url_type)
 
         # Ensure None values are set to 0
         license_score = 0.0 if license_score is None else license_score
         dataset_quality_score = 0.0 if dataset_quality_score is None else dataset_quality_score
         code_quality = 0.0 if code_quality is None else code_quality
+        dataset_and_code_score = 0.0 if dataset_and_code_score is None else dataset_and_code_score
 
         # Compute net score
         size_score = 0.0
