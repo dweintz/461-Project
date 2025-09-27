@@ -22,9 +22,6 @@ from metrics.performance_claims import get_performance_claims
 from metrics.rampup import get_ramp_up
 from metrics.busfactor import get_bus_factor
 
-# ONCE THEY ARE CODED, WILL IMPORT URL HANDLERS HERE AND CALL THEM LATER
-
-
 def parse_args() -> argparse.Namespace:
     '''
     Parse CLI arguments
@@ -79,8 +76,7 @@ def read_urls(file_path: Path) -> List[str]:
         for line in f:
             # Separate commas and strip whitespace
             parts = [url.strip() for url in line.split(",") if url.strip()]
-            urls.extend(parts)
-
+            urls.append(parts)
     return urls
     
 def main() -> None:
@@ -112,47 +108,94 @@ def main() -> None:
     print(f"Processing {len(urls)} URLs...")
 
     # Classify URLs by type (model, dataset, code)
-    classifications = {}
-    for url in urls:
-        log.info("processing url", extra={"phase": "controller", "url": url})
-        try:
-            url_type = classify_url(url)
-            log.info("classified", extra={"phase": "controller", "type": url_type})
-        except Exception:
-            log.exception("classification failed", extra={"phase": "controller"})
-            print(f"{url} -> ERROR: classification failed")
-            continue
+    classifications = []
+    for line in urls:
+        line_classifications = {}
+        for url in line:
+            log.info("processing url", extra={"phase": "controller", "url": url})
+            try:
+                url_type = classify_url(url)
+                log.info("classified", extra={"phase": "controller", "type": url_type})
+            except Exception:
+                log.exception("classification failed", extra={"phase": "controller"})
+                print(f"{url} -> ERROR: classification failed")
+                continue
 
-        if url_type == "unknown":
-            log.warning("unknown url type", extra={"phase": "controller"})
-            print(f"Error: Unknown URL type for {urls}", file = sys.stderr)
-            sys.exit(1)
-        if url_type == "model":
-            handle_model_url(url)
-            classifications[url] = url_type
-        elif url_type == "dataset":
-            handle_dataset_url(url)
-            classifications[url] = url_type
-        elif url_type == "code":
-            handle_code_url(url)
-            classifications[url] = url_type
+            if url_type == "unknown":
+                log.warning("unknown url type", extra={"phase": "controller"})
+                print(f"Error: Unknown URL type for {urls}", file = sys.stderr)
+                sys.exit(1)
+            if url_type == "model":
+                handle_model_url(url)
+                line_classifications[url] = url_type
+            elif url_type == "dataset":
+                handle_dataset_url(url)
+                line_classifications[url] = url_type
+            elif url_type == "code":
+                handle_code_url(url)
+                line_classifications[url] = url_type
+        classifications.append(line_classifications)
+    
+    print(classifications) # list of dictionaries containing URLs provided in each line
 
-        # Calculate metrics
-        start_time = time.time()
+    
 
-        size_dict, size_latency = get_size_score(url, url_type)
-        license_score, license_latency = get_license_score(url, url_type)
-        dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
-        code_quality, code_quality_latency = get_code_quality(url, url_type)
-        performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
-        bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
-        ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
-        dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0
+    # Calculate metrics
+    start_time = time.time()
 
-        # Ensure None values are set to 0
-        license_score = 0.0 if license_score is None else license_score
-        dataset_quality_score = 0.0 if dataset_quality_score is None else dataset_quality_score
-        code_quality = 0.0 if code_quality is None else code_quality
+    for line in classifications:
+        # intialize all fields to zero
+
+        # string fields
+        name = ""
+        category = ""
+
+        # float scores (0–1)
+        net_score = 0.0
+        ramp_up_time = 0.0
+        bus_factor = 0.0
+        performance_claims = 0.0
+        license = 0.0
+        dataset_and_code_score = 0.0
+        dataset_quality = 0.0
+        code_quality = 0.0
+
+        # latencies (milliseconds)
+        net_score_latency = 0
+        ramp_up_time_latency = 0
+        bus_factor_latency = 0
+        performance_claims_latency = 0
+        license_latency = 0
+        size_score_latency = 0
+        dataset_and_code_score_latency = 0
+        dataset_quality_latency = 0
+        code_quality_latency = 0
+
+        # object field (dict)
+        size_dict = {
+            "raspberry_pi": 0.0,
+            "jetson_nano": 0.0,
+            "desktop_pc": 0.0,
+            "aws_server": 0.0
+        }
+
+        # update fields based on URL type
+        for url, url_type in zip(line.keys(), line.values()):
+            name = url.split("/")[-1]
+            category = url_type.upper()
+
+            if url_type == 'code':
+                code_quality, code_quality_latency = get_code_quality(url, url_type)
+            if url_type == 'dataset':
+                dataset_quality, dataset_quality_latency = get_dataset_quality_score(url, url_type)
+                dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0
+            else:
+                size_dict, size_latency = get_size_score(line[url], url_type)
+                license, license_latency = get_license_score(url, url_type)
+                performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
+                bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
+                ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
+            log.info("url done", extra = {"phase": "controller", "url": url})
 
         # Compute net score
         size_score = 0.0
@@ -160,10 +203,10 @@ def main() -> None:
             size_score = sum(size_dict.values()) / len(size_dict)
 
         net_score = 0.15 * size_score + \
-                    0.15 * license_score + \
+                    0.15 * license + \
                     0.10 * ramp_up + \
                     0.10 * bus_factor + \
-                    0.15 * dataset_quality_score + \
+                    0.15 * dataset_quality + \
                     0.10 * code_quality + \
                     0.15 * performance_claims + \
                     0.10 * dataset_and_code_score
@@ -173,23 +216,23 @@ def main() -> None:
 
         # Build NDJSON output
         output = {
-            "name": url.split("/")[-1],
-            "category": url_type.upper(),
+            "name": name,
+            "category": category,
             "net_score": round(net_score, 2),
             "net_score_latency": net_score_latency,
-            "ramp_up_time": round(ramp_up, 2),
-            "ramp_up_time_latency": ramp_up_latency,
+            "ramp_up_time": round(ramp_up_time, 2),
+            "ramp_up_time_latency": ramp_up_time_latency,
             "bus_factor": round(bus_factor, 2),
             "bus_factor_latency": bus_factor_latency,
             "performance_claims": round(performance_claims, 2),
             "performance_claims_latency": performance_claims_latency,
-            "license": round(license_score, 2),
+            "license": round(license, 2),
             "license_latency": license_latency,
             "size_score": {k: round(v, 2) for k, v in size_dict.items()} if size_dict else {},
-            "size_score_latency": size_latency,
+            "size_score_latency": size_score_latency,
             "dataset_and_code_score": round(dataset_and_code_score, 2),
             "dataset_and_code_score_latency": dataset_and_code_score_latency,
-            "dataset_quality": round(dataset_quality_score, 2),
+            "dataset_quality": round(dataset_quality, 2),
             "dataset_quality_latency": dataset_quality_latency,
             "code_quality": round(code_quality, 2),
             "code_quality_latency": code_quality_latency
@@ -198,28 +241,8 @@ def main() -> None:
         # Print one JSON object per line (NDJSON)
         print(json.dumps(output))
 
-    #     size_dict, size_latency = get_size_score(url, url_type) 
-    #     license_score, license_latency = get_license_score(url, url_type)
-    #     dataset_quality_score, dataset_quality_latency = get_dataset_quality_score(url, url_type)
-    #     code_quality, code_quality_latency = get_code_quality(url, url_type)
-    #     performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
-    #     bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
-    #     ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
-    #     dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0 # need a function for this
-
-    #     if size_dict is not None:
-    #         for key in size_dict:
-    #             size_score += size_dict[key]
-    #         size_score /= len(size_dict)
-        
-    # # TEMPORARY OUTPUT, REPLACE LATER
-    # for url in urls:
-    #     netscore = 0.0
-    #     print(f"{url} -> NetScore: 0.0")
-    #     log.info("url done", extra={"phase": "controller", "url": url, "net_score": netscore})
-
-    # dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
-    # log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
+    dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
+    log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
     
 if __name__  == "__main__":
     main()
