@@ -83,7 +83,7 @@ def main() -> None:
     # get CLI arguments
     args = parse_args()
 
-    url_file = args.url_file.resolve()
+    url_file_path = args.url_file.resolve()
 
     # Configure the log destination first
     if args.log_file:
@@ -99,8 +99,8 @@ def main() -> None:
 
     # open URL file
     try:
-        urls = read_urls(args.url_file)
-        log.info("read urls", extra={"phase": "run", "count": len(urls), "file": str(args.url_file)})
+        urls = read_urls(url_file_path)
+        log.info("read urls", extra={"phase": "run", "count": len(urls), "file": str(url_file_path)})
     except Exception as e:
         print(f"Error reading URL file {e}", file = sys.stderr)
         log.exception("failed to read url file", extra={"phase": "run"})
