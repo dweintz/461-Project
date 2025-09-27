@@ -136,110 +136,118 @@ def main() -> None:
                 line_classifications[url] = url_type
         classifications.append(line_classifications)
     
-    print(classifications) # list of dictionaries containing URLs provided in each line
+    # print(classifications) # list of dictionaries containing URLs provided in each line
 
     
 
     # Calculate metrics
     start_time = time.time()
 
-    for line in classifications:
-        # intialize all fields to zero
+    with open("src/scorer/output.txt", "w") as f:
+        for line in classifications:
+            # intialize all fields to zero
 
-        # string fields
-        name = ""
-        category = ""
+            # string fields
+            name = ""
+            category = ""
 
-        # float scores (0–1)
-        net_score = 0.0
-        ramp_up_time = 0.0
-        bus_factor = 0.0
-        performance_claims = 0.0
-        license = 0.0
-        dataset_and_code_score = 0.0
-        dataset_quality = 0.0
-        code_quality = 0.0
+            # float scores (0–1)
+            net_score = 0.0
+            ramp_up = 0.0
+            bus_factor = 0.0
+            performance_claims = 0.0
+            license = 0.0
+            dataset_and_code_score = 0.0
+            dataset_quality = 0.0
+            code_quality = 0.0
 
-        # latencies (milliseconds)
-        net_score_latency = 0
-        ramp_up_time_latency = 0
-        bus_factor_latency = 0
-        performance_claims_latency = 0
-        license_latency = 0
-        size_score_latency = 0
-        dataset_and_code_score_latency = 0
-        dataset_quality_latency = 0
-        code_quality_latency = 0
+            # latencies (milliseconds)
+            net_score_latency = 0
+            ramp_up_latency = 0
+            bus_factor_latency = 0
+            performance_claims_latency = 0
+            license_latency = 0
+            size_latency = 0
+            dataset_and_code_score_latency = 0
+            dataset_quality_latency = 0
+            code_quality_latency = 0
 
-        # object field (dict)
-        size_dict = {
-            "raspberry_pi": 0.0,
-            "jetson_nano": 0.0,
-            "desktop_pc": 0.0,
-            "aws_server": 0.0
-        }
+            # object field (dict)
+            size_dict = {
+                "raspberry_pi": 0.0,
+                "jetson_nano": 0.0,
+                "desktop_pc": 0.0,
+                "aws_server": 0.0
+            }
 
-        # update fields based on URL type
-        for url, url_type in zip(line.keys(), line.values()):
-            name = url.split("/")[-1]
-            category = url_type.upper()
+            # update fields based on URL type
+            for url, url_type in zip(line.keys(), line.values()):
+                name = url.split("/")[-1]
+                category = url_type.upper()
 
-            if url_type == 'code':
-                code_quality, code_quality_latency = get_code_quality(url, url_type)
-            if url_type == 'dataset':
-                dataset_quality, dataset_quality_latency = get_dataset_quality_score(url, url_type)
-                dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0
-            else:
-                size_dict, size_latency = get_size_score(line[url], url_type)
-                license, license_latency = get_license_score(url, url_type)
-                performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
-                bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
-                ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
-            log.info("url done", extra = {"phase": "controller", "url": url})
+                if url_type == 'code':
+                    code_quality, code_quality_latency = get_code_quality(url, url_type)
+                elif url_type == 'dataset':
+                    dataset_quality, dataset_quality_latency = get_dataset_quality_score(url, url_type)
+                    dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0
+                elif url_type == 'model':
+                    # size_dict, size_latency = get_size_score(line[url], url_type)
+                    license, license_latency = get_license_score(url, url_type)
+                    # print(license)
+                    # performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
+                    # print(performance_claims)
+                    # bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
+                    # print(bus_factor)
+                    # ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
+                    # print(ramp_up)
+                log.info("url done", extra = {"phase": "controller", "url": url})
 
-        # Compute net score
-        size_score = 0.0
-        if size_dict:
-            size_score = sum(size_dict.values()) / len(size_dict)
+            # Compute net score
+            size_score = 0.0
+            if size_dict:
+                size_score = sum(size_dict.values()) / len(size_dict)
 
-        net_score = 0.15 * size_score + \
-                    0.15 * license + \
-                    0.10 * ramp_up + \
-                    0.10 * bus_factor + \
-                    0.15 * dataset_quality + \
-                    0.10 * code_quality + \
-                    0.15 * performance_claims + \
-                    0.10 * dataset_and_code_score
+            net_score = 0.15 * size_score + \
+                        0.15 * license + \
+                        0.10 * ramp_up + \
+                        0.10 * bus_factor + \
+                        0.15 * dataset_quality + \
+                        0.10 * code_quality + \
+                        0.15 * performance_claims + \
+                        0.10 * dataset_and_code_score
 
-        # Compute net score latency in milliseconds
-        net_score_latency = int((time.time() - start_time) * 1000)
+            # Compute net score latency in milliseconds
+            net_score_latency = int((time.time() - start_time) * 1000)
 
-        # Build NDJSON output
-        output = {
-            "name": name,
-            "category": category,
-            "net_score": round(net_score, 2),
-            "net_score_latency": net_score_latency,
-            "ramp_up_time": round(ramp_up_time, 2),
-            "ramp_up_time_latency": ramp_up_time_latency,
-            "bus_factor": round(bus_factor, 2),
-            "bus_factor_latency": bus_factor_latency,
-            "performance_claims": round(performance_claims, 2),
-            "performance_claims_latency": performance_claims_latency,
-            "license": round(license, 2),
-            "license_latency": license_latency,
-            "size_score": {k: round(v, 2) for k, v in size_dict.items()} if size_dict else {},
-            "size_score_latency": size_score_latency,
-            "dataset_and_code_score": round(dataset_and_code_score, 2),
-            "dataset_and_code_score_latency": dataset_and_code_score_latency,
-            "dataset_quality": round(dataset_quality, 2),
-            "dataset_quality_latency": dataset_quality_latency,
-            "code_quality": round(code_quality, 2),
-            "code_quality_latency": code_quality_latency
-        }
+            # Build NDJSON output
+            output = {
+                "name":name,
+                "category":category,
+                "net_score":round(net_score, 2),
+                "net_score_latency":net_score_latency,
+                "ramp_up_time":round(ramp_up, 2),
+                "ramp_up_time_latency":ramp_up_latency,
+                "bus_factor":round(bus_factor, 2),
+                "bus_factor_latency":bus_factor_latency,
+                "performance_claims":round(performance_claims, 2),
+                "performance_claims_latency":performance_claims_latency,
+                "license":round(license, 2),
+                "license_latency": license_latency,
+                "size_score":{k: round(v, 2) for k, v in size_dict.items()} if size_dict else {},
+                "size_score_latency":size_latency,
+                "dataset_and_code_score":round(dataset_and_code_score, 2),
+                "dataset_and_code_score_latency":dataset_and_code_score_latency,
+                "dataset_quality":round(dataset_quality, 2),
+                "dataset_quality_latency":dataset_quality_latency,
+                "code_quality":round(code_quality, 2),
+                "code_quality_latency":code_quality_latency
+            }
 
-        # Print one JSON object per line (NDJSON)
-        print(json.dumps(output))
+            
+            # f.write(f"{json.dumps(output)}\n")
+
+            # Print one JSON object per line (NDJSON)
+            print(json.dumps(output))
 
     dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
     log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
