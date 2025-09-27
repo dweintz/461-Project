@@ -84,7 +84,7 @@ def main() -> None:
     args = parse_args()
 
     url_file_path = args.url_file.resolve()
-    print(url_file_path)
+
     # Configure the log destination first
     if args.log_file:
         os.environ["LOG_FILE"] = str(args.log_file)
