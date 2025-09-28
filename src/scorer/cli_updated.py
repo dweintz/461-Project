@@ -21,6 +21,7 @@ from metrics.code_quality import get_code_quality
 from metrics.performance_claims import get_performance_claims
 from metrics.rampup import get_ramp_up
 from metrics.busfactor import get_bus_factor
+from metrics.base import get_repo_id
 
 def parse_args() -> argparse.Namespace:
     '''
@@ -188,7 +189,9 @@ def main() -> None:
 
         # update fields based on URL type
         for url, url_type in zip(line.keys(), line.values()):
-            name = url.split("/")[-1]
+            name = get_repo_id(url, url_type)#url.split("/")[-1]
+            name = name.split('/')[1]
+            
             category = url_type.upper()
 
             if url_type == 'code':
