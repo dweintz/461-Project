@@ -43,13 +43,14 @@ def parse_args() -> argparse.Namespace:
         "--log-file",
         type = Path,
         default = None,
-        help = "Path to write log file (if not set, logs go to stdout)"
+        help = "Path to write log file (if not set, uses $LOG_FILE or logs/scorer.log)"
     )
     parser.add_argument(
         "--log-level",
-        default=os.environ.get("LOG_LEVEL", "INFO"),
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="File log level (default INFO)"
+        type=int,
+        choices=[0, 1, 2],
+        default=int(os.environ.get("LOG_LEVEL", "0")),
+        help="Verbosity: 0=silent, 1=info, 2=debug (default 0 or $LOG_LEVEL)"
     )
     parser.add_argument(
         "--log-text",
@@ -88,8 +89,13 @@ def main() -> None:
     # Configure the log destination first
     if args.log_file:
         os.environ["LOG_FILE"] = str(args.log_file)
+    else:
+        # ensure a default is present so the file is always produced
+        os.environ.setdefault("LOG_FILE", "logs/scorer.log")
+    
 
     # Init logging
+    os.environ["LOG_LEVEL"] = str(args.log_level)
     setup_logging(level=args.log_level, json_lines=not args.log_text)
     run_id = set_run_id(args.run_id)
     log = get_logger("cli")
