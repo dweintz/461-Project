@@ -146,6 +146,10 @@ def setup_logging(*, level: Optional[Union[int, str]] = None, json_lines: bool =
     log_path = Path(os.environ.get("LOG_FILE", "logs/scorer.log"))
     os.environ.setdefault("LOG_FILE", str(log_path))
 
+    if not log_path.exists() or log_path.is_dir():
+        print(f"Error: log file {log_path} does not exist.", file=sys.stderr)
+        sys.exit(1)
+
     # Normalize verbosity (0/1/2)
     verbosity = _normalize_verbosity(level)
     os.environ["LOG_LEVEL"] = str(verbosity)  # reflect normalized value back to env
@@ -164,7 +168,8 @@ def setup_logging(*, level: Optional[Union[int, str]] = None, json_lines: bool =
     try:
         handler = RotatingFileHandler(log_path, maxBytes=5_000_000, backupCount=2, encoding="utf-8")
     except OSError as e:
-        _fail_invalid_log_path(log_path, e)
+        print(f"Error: cannot open log file {log_path}: {e}", file=sys.stderr)
+        sys.exit(1)
 
     handler.setLevel(py_level)
     handler.setFormatter(JSONLineFormatter() if json_lines else TextFormatter())
