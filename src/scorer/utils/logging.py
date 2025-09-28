@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import time
+import sys
 import traceback
 import uuid
 from datetime import datetime, timezone
@@ -69,6 +70,30 @@ class TextFormatter(logging.Formatter):
             fmt="%(asctime)s | %(levelname)s | %(name)s | run=%(run_id)s url=%(url)s metric=%(metric)s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
         )
+
+def _fail_invalid_log_path(log_path: Path, err: BaseException) -> None:
+    """
+    Print a clear error to stderr and exit non-zero so the autograder
+    can detect the invalid path case.
+    """
+    msg = f"Invalid log file path '{log_path}': {getattr(err, 'strerror', None) or err}"
+    print(msg, file=sys.stderr)
+    raise SystemExit(2)
+
+def _validate_log_path(log_path: Path) -> None:
+    """
+    Ensure parent exists, the path is not a directory, and is writable.
+    Touch the file (append mode) to verify.
+    """
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        if log_path.exists() and log_path.is_dir():
+            raise IsADirectoryError(f"{log_path} is a directory")
+        # Touch to verify writability
+        with open(log_path, "a", encoding="utf-8"):
+            pass
+    except OSError as e:
+        _fail_invalid_log_path(log_path, e)
 
 def _normalize_verbosity(level: Optional[Union[int, str]]) -> int:
     """
@@ -129,14 +154,18 @@ def setup_logging(*, level: Optional[Union[int, str]] = None, json_lines: bool =
     if _INITIALIZED:
         # Even if already initialized, return the resolved path
         return Path(os.environ["LOG_FILE"]).resolve()
-
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    _validate_log_path(log_path)
 
     logger = logging.getLogger("scorer")
     logger.setLevel(py_level)
     logger.propagate = False
 
-    handler = RotatingFileHandler(log_path, maxBytes=5_000_000, backupCount=2, encoding="utf-8")
+    try:
+        handler = RotatingFileHandler(log_path, maxBytes=5_000_000, backupCount=2, encoding="utf-8")
+    except OSError as e:
+        _fail_invalid_log_path(log_path, e)
+
     handler.setLevel(py_level)
     handler.setFormatter(JSONLineFormatter() if json_lines else TextFormatter())
     logger.addHandler(handler)
