@@ -191,14 +191,14 @@ def main() -> None:
                 dataset_quality, dataset_quality_latency = get_dataset_quality_score(url, url_type)
                 dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0
             elif url_type == 'model':
-                # size_dict, size_latency = get_size_score(line[url], url_type)
+                size_dict, size_latency = get_size_score(url, url_type)
                 license, license_latency = get_license_score(url, url_type)
                 # print(license)
                 performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
                 # print(performance_claims)
-                # bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
+                bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
                 # print(bus_factor)
-                # ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
+                ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
                 # print(ramp_up)
             log.info("url done", extra = {"phase": "controller", "url": url})
 
