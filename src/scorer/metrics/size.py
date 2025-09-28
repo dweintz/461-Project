@@ -108,7 +108,7 @@ def get_size_score(url: str, url_type: str) -> Tuple[Optional[Dict[str, float]],
         code_info = requests.get(base_url).json()
         total_bytes = (code_info.get("size", 0) or 0) * 1024 # Convert to bytes
 
-    print(f"Total bytes for {url} is {total_bytes}")
+    # print(f"Total bytes for {url} is {total_bytes}")
 
     size_dict = {}
     for hardware, limit in hardware_limits.items():
