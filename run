@@ -29,7 +29,6 @@ elif [ "$1" == "test" ]; then
     else
         exit 1
     fi
-fi
 
 # ./ run URL_FILE
 else
