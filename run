@@ -8,26 +8,36 @@ if [ "$1" == "install" ]; then
 
 # ./run test
 elif [ "$1" == "test" ]; then
-    # Run pytest quietly, produce coverage file and JSON report
+    # Run pytest and capture exit code
     pytest --maxfail=1 --disable-warnings -q \
         --cov=src/scorer/metrics --cov-report=term \
-        --json-report --json-report-file=pytest-report.json > pytest.out || true
-
-    # Extract coverage percentage from term output
-    COVERAGE=$(grep -Eo 'TOTAL\s+[0-9]+\s+[0-9]+\s+[0-9]+%' pytest.out | tail -1 | grep -Eo '[0-9]+')
-
-    # Count tests passed/failed
-    PASSED=$(grep -Eo '[0-9]+ passed' pytest.out | grep -Eo '[0-9]+')
-    FAILED=$(grep -Eo '[0-9]+ failed' pytest.out | grep -Eo '[0-9]+')
-
-    [ -z "$PASSED" ] && PASSED=0
-    [ -z "$FAILED" ] && FAILED=0
+        --json-report --json-report-file=pytest-report.json > pytest.out 2>&1
+    PYTEST_EXIT_CODE=$?
+    
+    # Extract coverage percentage from TOTAL line
+    COVERAGE=$(grep -E '^TOTAL\s+' pytest.out | awk '{print $4}' | sed 's/%//')
     [ -z "$COVERAGE" ] && COVERAGE=0
-
-    echo "$PASSED/$((PASSED + FAILED)) test cases passed. $COVERAGE% line coverage achieved."
-
-    if [ "$FAILED" -eq 0 ] && [ "$COVERAGE" -ge 80 ]; then
-        exit 0
+    
+    # Count tests passed
+    PASSED=$(grep -E '[0-9]+ passed' pytest.out | grep -Eo '[0-9]+' | head -1)
+    [ -z "$PASSED" ] && PASSED=0
+    
+    # Count tests failed (if any)
+    if grep -E '[0-9]+ failed' pytest.out > /dev/null 2>&1; then
+        FAILED=$(grep -E '[0-9]+ failed' pytest.out | grep -Eo '[0-9]+' | head -1)
+    else
+        FAILED=0
+    fi
+    
+    # Calculate total tests
+    TOTAL=$((PASSED + FAILED))
+    
+    # Print summary
+    echo "$PASSED/$TOTAL test cases passed. $COVERAGE% line coverage achieved."
+    
+    # Check if coverage meets minimum requirement (80%)
+    if [ "$COVERAGE" -ge 80 ]; then
+        exit $PYTEST_EXIT_CODE
     else
         exit 1
     fi

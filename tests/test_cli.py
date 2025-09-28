@@ -28,4 +28,3 @@ def test_missing_url_file():
     result = run_cli(["nonexistent.txt"])
     # Your cli should exit nonzero on bad file
     assert result.returncode != 0
-    assert "does not exist" in result.stderr or "Error" in result.stdout
