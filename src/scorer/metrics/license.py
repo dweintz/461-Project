@@ -88,7 +88,7 @@ def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
     license = None
     if url_type == "model":
         info = HF_API.model_info(repo_id=repo_id)
-        license = getattr(info, "license", None)
+        license = (getattr(info, "license", None) or (info.cardData or {}).get("license"))
     
     elif url_type == "dataset":
         info = HF_API.dataset_info(repo_id=repo_id)
