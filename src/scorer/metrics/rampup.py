@@ -1,4 +1,5 @@
-# This code implements the ramp up feasibility of the hugging face model by utilizing an LLM prompt.
+# This code implements the ramp up feasibility metric
+# by utilizing Purdue GenAI Studio (LLM prompt) via RCAC.
 
 from __future__ import annotations
 
@@ -8,19 +9,20 @@ import time
 import json
 import shutil
 import tempfile
+import sys
 from pathlib import Path
 from typing import Tuple, List, Optional
 
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 from git import Repo
 from dotenv import load_dotenv
-
-try:
-    from huggingface_hub import InferenceClient
-except Exception:
-    InferenceClient = None
-
-# NEW: normalize clone targets (works for GitHub & HF, strips /tree/main)
 from urllib.parse import urlparse
+
+# Load .env if present so GEN_AI_STUDIO_API_KEY / GENAI_* vars are picked up
+load_dotenv()
 
 def _to_clone_url(url: str, url_type: str) -> str:
     p = urlparse(url)
@@ -33,8 +35,6 @@ def _to_clone_url(url: str, url_type: str) -> str:
         return f"https://github.com/{parts[0]}/{parts[1]}.git"
 
     if "huggingface.co" in host:
-        # models:  /<ns>/<name>[/...]
-        # datasets:/datasets/<ns>/<name>[/...]
         if parts and parts[0].lower() == "datasets":
             if len(parts) < 3:
                 raise ValueError("HF dataset URL must be /datasets/<ns>/<name>")
@@ -46,7 +46,6 @@ def _to_clone_url(url: str, url_type: str) -> str:
             repo_id = f"{parts[0]}/{parts[1]}"
             return f"https://huggingface.co/{repo_id}"
 
-    # fallback (may still work if it's plain git)
     return url
 
 README_CANDIDATES = [
@@ -93,104 +92,210 @@ SYSTEM_PROMPT = (
     '{"score": <float between 0 and 1>, "rationale": "<<=200 chars explanation>"}\n\n'
     "Do NOT include anything else."
 )
-USER_PROMPT_TEMPLATE = "REPO SUMMARY (first {n_files} files)\n----------------\n{tree}\n\nREADME (truncated if very long)\n----------------\n{readme}\n"
+USER_PROMPT_TEMPLATE = (
+    "REPO SUMMARY (first {n_files} files)\n----------------\n{tree}\n\n"
+    "README (truncated if very long)\n----------------\n{readme}\n"
+)
 
-# --- NEW: small heuristic fallback if LLM not available or fails
 _HEUR_PATTERNS = [
     r"\bpip install\b", r"\bconda (?:create|install)\b", r"\bgit clone\b", r"\bpython (?:-m )?\w+\.py\b",
     r"\busage\b", r"\bquick\s*start\b", r"\bexample\b", r"\brequirements\.txt\b", r"\benvironment\.yml\b",
     r"```", r"\btroubleshoot", r"\bfaq\b", r"\bdocs?\b", r"\btutorial\b"
 ]
+
 def _heuristic_rampup(readme: str, tree: str) -> float:
     txt = (readme or "") + "\n" + (tree or "")
     hits = sum(1 for pat in _HEUR_PATTERNS if re.search(pat, txt, flags=re.IGNORECASE))
-    # Cap at 1.0, tuned so good repos land ~0.8-0.95
     return max(0.0, min(1.0, 0.15 + 0.06 * hits))
 
+def _session_with_retry() -> requests.Session:
+    s = requests.Session()
+    r = Retry(
+        total=3, connect=3, read=3,
+        backoff_factor=0.5,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset(["POST"])
+    )
+    s.mount("https://", HTTPAdapter(max_retries=r))
+    s.mount("http://", HTTPAdapter(max_retries=r))
+    return s
+
+def _extract_json_first(s: str) -> dict | None:
+    if not s:
+        return None
+    depth = 0
+    start = -1
+    in_str = False
+    esc = False
+    quote = ""
+    for i, ch in enumerate(s):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == quote:
+                in_str = False
+            continue
+        if ch == '"' or ch == "'":
+            in_str = True
+            quote = ch
+        elif ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start != -1:
+                    snippet = s[start:i+1]
+                    try:
+                        return json.loads(snippet)
+                    except Exception:
+                        start = -1
+                        continue
+    return None
+
 def _ask_llm(readme: str, tree: str) -> Optional[float]:
-    if InferenceClient is None:
+    api_key = os.getenv("GEN_AI_STUDIO_API_KEY", "").strip()
+    if not api_key:
         return None
 
-    model_id = os.getenv("RAMPUP_LLM_MODEL", "").strip()
-    token = os.getenv("HF_TOKEN", "").strip()
-    if not model_id or not token:
-        return None
+    base = os.getenv("GENAI_BASE_URL", "https://genai.rcac.purdue.edu").rstrip("/")
+    path = os.getenv("GENAI_PATH", "/api/chat/completions")
+    url = f"{base}{path}"
+    model = os.getenv("GENAI_MODEL", "").strip() or "deepseek-r1:7b"
 
-    readme = (readme or "").strip()
-    if len(readme) > 20000:
-        readme = readme[:20000] + "\n\n[TRUNCATED]"
-    user_prompt = USER_PROMPT_TEMPLATE.format(n_files=120, tree=tree[:8000], readme=readme)
-
-    client = InferenceClient(model=model_id, token=token, timeout=90)
-
-    # 1) Try chat-completions (OpenAI-style)
-    try:
-        resp = client.chat_completion(
-            messages=[
+    def _build_payload(user_prompt: str):
+        return {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=200,
-            temperature=0.2,
-        )
-        txt = (resp.choices[0].message["content"] if isinstance(resp.choices[0].message, dict)
-               else resp.choices[0].message.content)
-        data = json.loads((txt or "").strip())
-        return float(data.get("score", 0.0))
-    except Exception:
-        pass
+            "max_tokens": 220,
+            "temperature": 0.0,
+            "top_p": 1.0,
+            "response_format": {"type": "json_object"},
+        }
 
-    # 2) Try provider's conversational task (the one your error mentions)
+    def _clean_text(txt: str) -> str:
+        if not txt:
+            return ""
+        # strip DeepSeek R1 thinking + code fences + leading/trailing junk
+        txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL)
+        txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", txt.strip(), flags=re.IGNORECASE)
+        return txt.strip()
+
+    def _parse_or_salvage(txt: str) -> Optional[float]:
+        txt = _clean_text(txt)
+        parsed = _extract_json_first(txt)
+        if parsed and isinstance(parsed, dict) and "score" in parsed:
+            try:
+                return float(parsed["score"])
+            except Exception:
+                pass
+        # salvage: look for a number in [0,1] and use that
+        m = re.search(r"\b(0(?:\.\d+)?|1(?:\.0+)?)\b", txt)
+        if m:
+            try:
+                return float(m.group(1))
+            except Exception:
+                return None
+        return None
+
+    # Build the README+tree prompt
+    readme = (readme or "").strip()
+    if len(readme) > 20000:
+        readme = readme[:20000] + "\n\n[TRUNCATED]"
+    user_prompt_1 = USER_PROMPT_TEMPLATE.format(n_files=120, tree=tree[:8000], readme=readme) + \
+        "\n\nReturn ONLY strict JSON: {\"score\": <float 0..1>, \"rationale\": \"<=200 chars\"}."
+
+    # Preflight debug
+    payload = _build_payload(user_prompt_1)
+    payload_str = json.dumps(payload)
+    # Send with retries
+    session = _session_with_retry()
     try:
-        conv = client.conversational(
-            inputs=user_prompt,
-            parameters={"max_new_tokens": 200, "temperature": 0.2},
-            system_prompt=SYSTEM_PROMPT,
-        )
-        # conv can be dict or string depending on provider
-        if isinstance(conv, dict):
-            txt = conv.get("generated_text") or (
-                conv.get("conversation", {}).get("generated_responses", [""]) or [""]
-            )[-1]
-        else:
-            txt = str(conv)
-        data = json.loads((txt or "").strip())
-        return float(data.get("score", 0.0))
-    except Exception:
-        pass
+        resp = session.post(url, headers={"Authorization": f"Bearer {api_key}",
+                                          "Content-Type": "application/json"},
+                            data=payload_str, timeout=90)
+    except requests.exceptions.Timeout as e:
+        return None
+    except requests.exceptions.SSLError as e:
+        return None
+    except requests.exceptions.ConnectionError as e:
+        return None
+    except Exception as e:
+        import traceback as _tb
+        return None
 
-    # 3) Fallback to raw text-generation
+    # HTTP status handling
+    if resp.status_code in (401, 402, 403):
+        return None
+    if resp.status_code == 400 and "Model not found" in (resp.text or ""):
+        return None
+    if resp.status_code != 200:
+        return None
+
+    # Parse 1st pass
     try:
-        gen = client.text_generation(
-            prompt=f"{SYSTEM_PROMPT}\n{user_prompt}",
-            max_new_tokens=200,
-            temperature=0.2,
-            do_sample=False,
-            return_full_text=False,
-        )
-        data = json.loads((gen or "").strip())
-        return float(data.get("score", 0.0))
-    except Exception:
-        pass
+        data = resp.json()
+    except ValueError as e:
+        return None
 
-    # If all LLM attempts fail
+    txt = None
+    try:
+        txt = data["choices"][0]["message"]["content"]
+    except Exception:
+        txt = data.get("output_text") or data.get("text") or ""
+    score = _parse_or_salvage(txt)
+    if isinstance(score, float):
+        return max(0.0, min(1.0, score))
+
+    # Second pass: ultra-strict re-ask (short, no repo text again)
+    user_prompt_2 = (
+        'Output EXACTLY this JSON (no analysis, no extra keys, no markdown): '
+        '{"score": <float 0..1>, "rationale": "<=200 chars>"}'
+    )
+    payload2 = _build_payload(user_prompt_2)
+    try:
+        resp2 = session.post(url, headers={"Authorization": f"Bearer {api_key}",
+                                           "Content-Type": "application/json"},
+                             data=json.dumps(payload2), timeout=60)
+    except Exception as e:
+        return None
+
+    if resp2.status_code != 200:
+        return None
+
+    try:
+        data2 = resp2.json()
+    except Exception as e:
+        return None
+
+    txt2 = None
+    try:
+        txt2 = data2["choices"][0]["message"]["content"]
+    except Exception:
+        txt2 = data2.get("output_text") or data2.get("text") or ""
+
+    score2 = _parse_or_salvage(txt2)
+    if isinstance(score2, float):
+        return max(0.0, min(1.0, score2))
+
     return None
 
-# Public API
+
 def get_ramp_up(url: str, url_type: str) -> Tuple[float, int]:
-    """
-    Clone a normalized repo URL, send README + repo summary to an LLM when available,
-    otherwise use a heuristic. Returns (score, latency_ms).
-    """
     start = time.time()
     temp_dir = tempfile.mkdtemp()
     try:
         kind = "dataset" if url_type.lower() == "dataset" else "model" if url_type.lower() == "model" else "code"
         clone_url = _to_clone_url(url, kind)
-
         env = os.environ.copy()
         env.setdefault("GIT_LFS_SKIP_SMUDGE", "1")
-        repo = Repo.clone_from(clone_url, temp_dir, multi_options=["--depth=100"], env=env)
+        Repo.clone_from(clone_url, temp_dir, multi_options=["--depth=100"], env=env)
 
         readme = _read_first_readme(temp_dir)
         tree = _top_level_summary(temp_dir, max_files=120)
@@ -201,9 +306,7 @@ def get_ramp_up(url: str, url_type: str) -> Tuple[float, int]:
 
         latency_ms = int((time.time() - start) * 1000)
         return max(0.0, min(1.0, float(score))), latency_ms
-
     except Exception:
-        # Don’t print to stdout; return neutral-low fallback
         return 0.0, int((time.time() - start) * 1000)
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
