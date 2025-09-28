@@ -95,7 +95,8 @@ def get_size_score(url: str, url_type: str) -> Tuple[Optional[Dict[str, float]],
     if url_type == "model":
         # Get model info and get size
         info = HF_API.model_info(repo_id=repo_id, files_metadata=True)
-        total_bytes = _hf_total_bytes(url)
+        for file in info.siblings:
+            total_bytes += file.size or 0
                 
     elif url_type == "dataset":
         info = HF_API.dataset_info(repo_id=repo_id, files_metadata=True)
