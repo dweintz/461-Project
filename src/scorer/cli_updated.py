@@ -78,13 +78,15 @@ def read_urls(file_path: Path) -> List[str]:
             # Separate commas and strip whitespace
             parts = [url.strip() for url in line.split(",") if url.strip()]
             
-            # Validate URL count per line
-            if len(parts) == 0:
-                print(f"Error: Line {i} is empty — must contain at least 1 URL.", file=sys.stderr)
-                sys.exit(1)
+            # # Validate URL count per line
+            # if len(parts) == 0:
+            #     print(f"Error: Line {i} is empty — must contain at least 1 URL.", file=sys.stderr)
+            #     sys.exit(1)
             if len(parts) > 3:
-                print(f"Error: Line {i} contains {len(parts)} URLs — maximum allowed is 3.", file=sys.stderr)
-                sys.exit(1)
+                # print(f"Error: Line {i} contains {len(parts)} URLs — maximum allowed is 3.", file=sys.stderr)
+                # sys.exit(1)
+                parts = parts[0:3]
+            
 
             urls.append(parts)
     return urls
