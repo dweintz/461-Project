@@ -82,10 +82,22 @@ def _check_model_card_performance(model_url: str) -> float:
     score = 0.0
 
     try:
-        # extract repo_id from url
+        # # extract repo_id from url
+        # if "huggingface.co/" not in model_url:
+        #     raise ValueError(f"Invalid HuggingFace URL: {model_url}")
+        # model_id = model_url.split("huggingface.co/")[-1].strip("/")
+
+        
+
+        # extract repo_id from URL
         if "huggingface.co/" not in model_url:
             raise ValueError(f"Invalid HuggingFace URL: {model_url}")
+
         model_id = model_url.split("huggingface.co/")[-1].strip("/")
+
+        # Remove any /tree/main, /blob/... etc
+        model_id = model_id.split("/tree")[0]
+        model_id = model_id.split("/blob")[0]
 
         # download README.md from the repo
         readme_path = hf_hub_download(
