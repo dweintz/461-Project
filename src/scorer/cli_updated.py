@@ -121,9 +121,9 @@ def main() -> None:
     # Classify URLs by type (model, dataset, code)
     classifications = []
     for line in urls:
-        # check if too many URLs
-        if len(line) > 3:
-            sys.exit(1)
+        # # check if too many URLs
+        # if len(line) > 3:
+        #     sys.exit(1)
         line_classifications = {}
         for url in line:
             log.info("processing url", extra={"phase": "controller", "url": url})
