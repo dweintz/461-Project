@@ -11,6 +11,7 @@ from git import Repo
 from huggingface_hub import hf_hub_download
 from dotenv import load_dotenv
 from pathlib import Path
+import re
 
 def get_performance_claims(url: str, url_type: str) -> Tuple[float, int]:
     '''
@@ -88,21 +89,52 @@ def _check_model_card_performance(model_url: str) -> float:
 
         # download README.md from the repo
         readme_path = hf_hub_download(
-            repo_id=model_id,
-            filename="README.md",
-            token=hf_token
+            repo_id = model_id,
+            filename = "README.md",
+            token = hf_token
         )
 
         # read full text
         with open(readme_path, "r", encoding="utf-8") as f:
             text = f.read().lower()
-        keywords = ["benchmark", "evaluation", "performance"]
-        score = _keyword_score(text, keywords)
+
+        # define keywords to check in the readme
+        sentences = re.split(r"[.!?]", text)
+        keywords = [
+            "benchmark", "evaluation", "performance", "metric", "score", "result", "outcome", 
+            "effectiveness", "efficacy", "validation", "accuracy", "f1", "precision", "recall", 
+            "auc", "roc", "top-1", "top-5", "mse", "mae", "rmse", "loss", "cross-entropy", 
+            "log-loss", "bleu", "rouge", "meteor", "perplexity", "iou", "ap", "map", 
+            "precision-recall", "latency", "throughput", "fps", "speed", "memory", "params", 
+            "size", "parameter", "parameters", "recognition", "beneficial"
+        ]
+
+        # Keep track of keywords that have already been counted
+        counted_keywords = set()
+        keyword_count = 0
+
+        for sent in sentences:
+            sent_lower = sent.lower()
+            for kw in keywords:
+                # match whole word only using \b for word boundaries
+                if re.search(rf"\b{re.escape(kw)}\b", sent_lower):
+                    if kw not in counted_keywords:
+                        # bonus if numeric value present
+                        if re.search(r"\b\d+(\.\d+)?%?\b", sent_lower):
+                            keyword_count += 2
+                        else:
+                            keyword_count += 1
+                        counted_keywords.add(kw)
+                        print(kw)
+
+        score = min(keyword_count / 10, 1.0)
+
+        print(f"Number of performance keywords = {keyword_count}")
 
     except Exception as e:
         print(f"Error checking model card: {e}")
 
-    return score
+    return round(score, 2)
 
 def _keyword_score(text: str, keywords: list[str]) -> float:
     '''
