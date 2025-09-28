@@ -4,3 +4,5 @@ python-dotenv
 pytest
 radon
 lizard
+pytest-cov
+pytest-json-report

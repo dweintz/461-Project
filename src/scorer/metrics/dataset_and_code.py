@@ -12,11 +12,36 @@ from huggingface_hub import HfApi, login
 from .base import get_repo_id
 
 load_dotenv()
-HF_TOKEN = os.getenv("HF_Token")
+# HF_TOKEN = os.getenv("HF_Token")
 HF_API = HfApi()
-login(token=HF_TOKEN)
+# login(token=HF_TOKEN)
+
+def _maybe_login() -> None:
+    """
+    Log in non-interactively only if a token is present.
+    Never prompt, never run at import time.
+    """
+    token = (
+        os.getenv("HF_TOKEN")           # preferred
+        or os.getenv("HF_Token")        # be forgiving if someone used this
+        or os.getenv("HUGGINGFACE_TOKEN")  # extra alias, optional
+    )
+    if not token:
+        return
+    try:
+        # No interactive questions, no new session popups
+        login(
+            token=token,
+            add_to_git_credential=False,
+            write_permission=False,
+            new_session=False,
+        )
+    except Exception:
+        # Swallow login issues; callers should still work anonymously where possible
+        pass
 
 def get_dataset_and_code_score(url: str, url_type: str):
+    _maybe_login()
     start_time = time.time()
 
     try:

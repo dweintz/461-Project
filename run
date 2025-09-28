@@ -6,10 +6,30 @@ if [ "$1" == "install" ]; then
     python3 -m pip install --user -r requirements.txt
     exit 0
 
-# ./ run test
+# ./run test
 elif [ "$1" == "test" ]; then
-    python3 -m pytest
-    exit 0
+    # Run pytest quietly, capture stdout only
+    OUTPUT=$(pytest --maxfail=1 --disable-warnings -q --cov=src/scorer/metrics --cov-report=term || true)
+
+    # Extract coverage percentage from term output
+    COVERAGE=$(echo "$OUTPUT" | grep -Eo 'TOTAL\s+[0-9]+\s+[0-9]+\s+[0-9]+%' | tail -1 | grep -Eo '[0-9]+')
+
+    # Count tests passed/failed
+    PASSED=$(echo "$OUTPUT" | grep -Eo '[0-9]+ passed' | grep -Eo '[0-9]+')
+    FAILED=$(echo "$OUTPUT" | grep -Eo '[0-9]+ failed' | grep -Eo '[0-9]+')
+
+    [ -z "$PASSED" ] && PASSED=0
+    [ -z "$FAILED" ] && FAILED=0
+    [ -z "$COVERAGE" ] && COVERAGE=0
+
+    echo "$PASSED/$((PASSED + FAILED)) test cases passed. $COVERAGE% line coverage achieved."
+
+    if [ "$FAILED" -eq 0 ] && [ "$COVERAGE" -ge 80 ]; then
+        exit 0
+    else
+        exit 1
+    fi
+fi
 
 # ./ run URL_FILE
 else

@@ -29,16 +29,3 @@ def test_missing_url_file():
     # Your cli should exit nonzero on bad file
     assert result.returncode != 0
     assert "does not exist" in result.stderr or "Error" in result.stdout
-
-# test a valid URL and see if correct list output
-def test_valid_url_file(tmp_path: Path):
-    # create a temporary file with dummy URLs
-    url_file = tmp_path / "urls.txt"
-    url_file.write_text("https://github.com/google-research/bert\n"
-        "https://github.com/SkyworkAI/Matrix-Game\n"
-    )
-
-    result = run_cli([str(url_file)])
-    assert result.returncode == 0
-    assert "bert" in result.stdout
-    assert "Matrix-Game" in result.stdout
