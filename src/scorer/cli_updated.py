@@ -85,7 +85,12 @@ def main() -> None:
     args = parse_args()
 
     url_file_path = args.url_file.resolve()
-
+    
+    # check GitHub token
+    GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+    if not GITHUB_TOKEN:
+        print("Warning: GITHUB_TOKEN environment variable is not set or empty.", file=sys.stderr)
+        
     # Configure the log destination first
     if args.log_file:
         os.environ["LOG_FILE"] = str(args.log_file)
