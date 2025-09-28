@@ -192,13 +192,13 @@ def main() -> None:
                 dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0
             elif url_type == 'model':
                 size_dict, size_latency = get_size_score(url, url_type)
-                license, license_latency = get_license_score(url, url_type)
+                # license, license_latency = get_license_score(url, url_type)
                 # print(license)
                 performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
                 # print(performance_claims)
-                bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
+                # bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
                 # print(bus_factor)
-                ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
+                # ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
                 # print(ramp_up)
             log.info("url done", extra = {"phase": "controller", "url": url})
 
@@ -244,7 +244,10 @@ def main() -> None:
         }
 
         # Print one JSON object per line (NDJSON)
-        print(json.dumps(output, separators=(',', ':')))
+        # print(json.dumps(output, separators=(',', ':')))
+        # Print one JSON object per line (NDJSON)
+        print(json.dumps(output, separators=(',', ':')) + "\n", end='')
+
 
     dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
     log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
