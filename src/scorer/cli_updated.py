@@ -90,6 +90,7 @@ def main() -> None:
     GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
     if not GITHUB_TOKEN:
         print("Warning: GITHUB_TOKEN environment variable is not set or empty.", file=sys.stderr)
+        sys.exit(1)
         
     # Configure the log destination first
     if args.log_file:
@@ -120,6 +121,9 @@ def main() -> None:
     # Classify URLs by type (model, dataset, code)
     classifications = []
     for line in urls:
+        # check if too many URLs
+        if len(line) > 3:
+            sys.exit(1)
         line_classifications = {}
         for url in line:
             log.info("processing url", extra={"phase": "controller", "url": url})
