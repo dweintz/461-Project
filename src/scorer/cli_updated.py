@@ -19,6 +19,7 @@ from metrics.license import get_license_score
 from metrics.dataset_quality import get_dataset_quality_score
 from metrics.code_quality import get_code_quality
 from metrics.performance_claims import get_performance_claims
+from metrics.dataset_and_code import get_dataset_and_code_score
 from metrics.rampup import get_ramp_up
 from metrics.busfactor import get_bus_factor
 from metrics.base import get_repo_id
@@ -198,7 +199,7 @@ def main() -> None:
                 code_quality, code_quality_latency = get_code_quality(url, url_type)
             elif url_type == 'dataset':
                 dataset_quality, dataset_quality_latency = get_dataset_quality_score(url, url_type)
-                dataset_and_code_score, dataset_and_code_score_latency = 0.0, 0.0
+                dataset_and_code_score, dataset_and_code_score_latency = get_dataset_and_code_score(url, url_type)
             elif url_type == 'model':
                 size_dict, size_latency = get_size_score(url, url_type)
                 license, license_latency = get_license_score(url, url_type)
