@@ -16,9 +16,9 @@ import logging
 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 load_dotenv()
-HF_TOKEN = os.getenv("HF_Token")
+# HF_TOKEN = os.getenv("HF_Token")
 HF_API = HfApi()
-login(token=HF_TOKEN)
+# login(token=HF_TOKEN)
 
 compatible_licenses = [
     "apache-2.0",
@@ -27,6 +27,30 @@ compatible_licenses = [
     "bsd-3-clause",
     "lgpl-2.1"
 ]
+
+def _maybe_login() -> None:
+    """
+    Log in non-interactively only if a token is present.
+    Never prompt, never run at import time.
+    """
+    token = (
+        os.getenv("HF_TOKEN")           # preferred
+        or os.getenv("HF_Token")        # be forgiving if someone used this
+        or os.getenv("HUGGINGFACE_TOKEN")  # extra alias, optional
+    )
+    if not token:
+        return
+    try:
+        # No interactive questions, no new session popups
+        login(
+            token=token,
+            add_to_git_credential=False,
+            write_permission=False,
+            new_session=False,
+        )
+    except Exception:
+        # Swallow login issues; callers should still work anonymously where possible
+        pass
 
 # Normalize license names from HF/GitHub API
 def is_compatible(license: str) -> bool:
@@ -50,6 +74,7 @@ def is_compatible(license: str) -> bool:
     return normalized in compatible_licenses
 
 def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
+    _maybe_login()
     start_time = time.time()
 
     # Get repo id

@@ -13,13 +13,37 @@ from typing import Tuple, Optional
 
 
 load_dotenv()
-HF_TOKEN = os.getenv("HF_Token")
+# HF_TOKEN = os.getenv("HF_Token")
 HF_API = HfApi()
-login(token=HF_TOKEN)
+# login(token=HF_TOKEN)
 
 # Downloads and likes targets for top tier quality
 max_downloads = 1000000 # 1 million downloads
 max_likes = 2000 
+
+def _maybe_login() -> None:
+    """
+    Log in non-interactively only if a token is present.
+    Never prompt, never run at import time.
+    """
+    token = (
+        os.getenv("HF_TOKEN")           # preferred
+        or os.getenv("HF_Token")        # be forgiving if someone used this
+        or os.getenv("HUGGINGFACE_TOKEN")  # extra alias, optional
+    )
+    if not token:
+        return
+    try:
+        # No interactive questions, no new session popups
+        login(
+            token=token,
+            add_to_git_credential=False,
+            write_permission=False,
+            new_session=False,
+        )
+    except Exception:
+        # Swallow login issues; callers should still work anonymously where possible
+        pass
 
 def normalize(value: int, target: int) -> float:
     if value <= 0:
@@ -27,6 +51,7 @@ def normalize(value: int, target: int) -> float:
     return min(1.0, math.log10(value + 1) / math.log10(target + 1))
 
 def get_dataset_quality_score(url: str, url_type: str) -> Tuple[Optional[float], int]:
+    _maybe_login()
     start_time = time.time()
 
     if url_type != "dataset":

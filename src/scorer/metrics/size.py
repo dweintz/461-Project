@@ -17,9 +17,9 @@ import logging
 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 load_dotenv()
-HF_TOKEN = os.getenv("HF_Token")
+# HF_TOKEN = os.getenv("HF_Token")
 HF_API = HfApi()
-login(token=HF_TOKEN)
+# login(token=HF_TOKEN)
 
 hardware_limits = {
     "raspberry_pi": 4000000000, # 4GB
@@ -27,6 +27,40 @@ hardware_limits = {
     "desktop_pc": 32000000000, # 32GB
     "aws_server": 512000000000 # 512GB
 }
+
+
+def _hf_total_bytes(model_url: str) -> int:
+    repo_id = get_repo_id(model_url, "model")  # returns 'google-bert/bert-base-uncased'
+    total = 0
+    for f in HF_API.list_files_info(repo_id=repo_id, revision="main"):
+        # f.size is bytes (int). Some entries may lack size; guard with 0.
+        total += int(getattr(f, "size", 0) or 0)
+    return total
+
+
+def _maybe_login() -> None:
+    """
+    Log in non-interactively only if a token is present.
+    Never prompt, never run at import time.
+    """
+    token = (
+        os.getenv("HF_TOKEN")           # preferred
+        or os.getenv("HF_Token")        # be forgiving if someone used this
+        or os.getenv("HUGGINGFACE_TOKEN")  # extra alias, optional
+    )
+    if not token:
+        return
+    try:
+        # No interactive questions, no new session popups
+        login(
+            token=token,
+            add_to_git_credential=False,
+            write_permission=False,
+            new_session=False,
+        )
+    except Exception:
+        # Swallow login issues; callers should still work anonymously where possible
+        pass
 
 def score_for_hardware(total_bytes: int, limit: int) -> float:
     """
@@ -46,6 +80,7 @@ def score_for_hardware(total_bytes: int, limit: int) -> float:
 
 # Pass in the url and its type from the URL handler cli code
 def get_size_score(url: str, url_type: str) -> Tuple[Optional[Dict[str, float]], int]:
+    _maybe_login()
     start_time = time.time()
 
     # Get repo id
@@ -60,8 +95,7 @@ def get_size_score(url: str, url_type: str) -> Tuple[Optional[Dict[str, float]],
     if url_type == "model":
         # Get model info and get size
         info = HF_API.model_info(repo_id=repo_id, files_metadata=True)
-        for file in info.siblings:
-            total_bytes += file.size or 0
+        total_bytes = _hf_total_bytes(url)
                 
     elif url_type == "dataset":
         info = HF_API.dataset_info(repo_id=repo_id, files_metadata=True)
