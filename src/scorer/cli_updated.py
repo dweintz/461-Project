@@ -86,7 +86,6 @@ def read_urls(file_path: Path) -> List[str]:
                 # print(f"Error: Line {i} contains {len(parts)} URLs — maximum allowed is 3.", file=sys.stderr)
                 # sys.exit(1)
                 parts = parts[0:3]
-            
 
             urls.append(parts)
     return urls
@@ -263,8 +262,9 @@ def main() -> None:
         # Print one JSON object per line (NDJSON)
         # print(json.dumps(output, separators=(',', ':')))
         # Print one JSON object per line (NDJSON)
-        print(json.dumps(output, separators=(',', ':')) + "\n", end='')
+        # print(json.dumps(output, separators=(',', ':')) + "\n", end='')
 
+        print(json.dumps(output, separators=(',', ':')))
 
     dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
     log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
