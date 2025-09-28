@@ -74,9 +74,18 @@ def read_urls(file_path: Path) -> List[str]:
     
     urls = []
     with file_path.open("r", encoding="utf-8") as f:
-        for line in f:
+        for i, line in enumerate(f):
             # Separate commas and strip whitespace
             parts = [url.strip() for url in line.split(",") if url.strip()]
+            
+            # Validate URL count per line
+            if len(parts) == 0:
+                print(f"Error: Line {i} is empty — must contain at least 1 URL.", file=sys.stderr)
+                sys.exit(1)
+            if len(parts) > 3:
+                print(f"Error: Line {i} contains {len(parts)} URLs — maximum allowed is 3.", file=sys.stderr)
+                sys.exit(1)
+
             urls.append(parts)
     return urls
     
@@ -121,9 +130,6 @@ def main() -> None:
     # Classify URLs by type (model, dataset, code)
     classifications = []
     for line in urls:
-        # # check if too many URLs
-        # if len(line) > 3:
-        #     sys.exit(1)
         line_classifications = {}
         for url in line:
             log.info("processing url", extra={"phase": "controller", "url": url})
