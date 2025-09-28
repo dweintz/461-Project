@@ -6,7 +6,7 @@ import os
 import shutil
 import tempfile
 import time
-import subprocess
+import subprocess, sys
 from git import Repo
 from typing import Tuple, Dict, Optional
 import ast
@@ -18,46 +18,47 @@ def run_radon(path: str) -> float:
     '''
     Function to run radon, a Python tool that analyzes source code complexity and maintainability.
     '''
+    cmds = [
+            [sys.executable, "-m", "radon", "mi", "-s", path],  # preferred
+            ["radon", "mi", "-s", path],                        # fallback
+        ]
 
-    try:
-        result = subprocess.run(
-            ["radon", "mi", "-s", path],
-            capture_output = True,
-            text = True,
-            check = True
-        )
-    except subprocess.CalledProcessError as e:
-        print(f"Radon failed:\n{e.stderr}")
-        exit(1)
+    result = None
+    for cmd in cmds:
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            break
+        except FileNotFoundError:
+            continue
+        except subprocess.CalledProcessError:
+            return 0.0
 
-    # define corresponding score to each grade
-    score_dict = {"A": 1.0, "B": 0.8, "C": 0.6, "D": 0.4, "E": 0.2, "F": 0.0}
+    if result is None:
+        return 0.0
 
-    scores = []
+    score_map = {"A": 1.0, "B": 0.8, "C": 0.6, "D": 0.4, "E": 0.2, "F": 0.0}
+    vals = []
     for line in result.stdout.splitlines():
         if " - " in line:
-            score = line.split(" -")[-1].strip()
-            scores.append(score_dict.get(score[0], 0.0))
-    if scores:
-        final_score = sum(scores) / len(scores)
-    else:
-        final_score = 0.0  
-    
-    return final_score
-    
+            grade = line.split(" -")[-1].strip()[:1]
+            vals.append(score_map.get(grade, 0.0))
+    return sum(vals)/len(vals) if vals else 0.0
+
 def run_lizard(path: str) -> Optional[Dict]:
     '''
     Function to run lizard, a multi-language code analysis tool that analyzes function complexity.
     '''
   
-    try:
-        result = subprocess.run(
-            ["lizard", path],
-            capture_output = True,
-            text = True
-        )
-    except Exception as e:
-        print(f"Failed to run Lizard: {e}")
+    for cmd in ([sys.executable, "-m", "lizard", path], ["lizard", path]):
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            break
+        except FileNotFoundError:
+            result = None
+            continue
+        except subprocess.CalledProcessError:
+            return None
+    if result is None:
         return None
 
     if result.returncode != 0:
