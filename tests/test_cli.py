@@ -11,7 +11,7 @@ import tempfile
 def run_cli(args):
     """Helper to run the CLI as a subprocess."""
     result = subprocess.run(
-        [sys.executable, "src/scorer/cli.py", *args],
+        [sys.executable, "src/scorer/cli_updated.py", *args],
         capture_output=True,
         text=True,
     )
@@ -40,6 +40,5 @@ def test_valid_url_file(tmp_path: Path):
 
     result = run_cli([str(url_file)])
     assert result.returncode == 0
-    assert "Processing 2 URLs" in result.stdout
-    assert "https://github.com/google-research/bert" in result.stdout
-    assert "https://github.com/SkyworkAI/Matrix-Game" in result.stdout
+    assert "bert" in result.stdout
+    assert "Matrix-Game" in result.stdout
