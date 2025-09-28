@@ -11,7 +11,7 @@ import tempfile
 def run_cli(args):
     """Helper to run the CLI as a subprocess."""
     result = subprocess.run(
-        [sys.executable, "cli.py", *args],
+        [sys.executable, "src/scorer/cli.py", *args],
         capture_output=True,
         text=True,
     )
@@ -34,10 +34,12 @@ def test_missing_url_file():
 def test_valid_url_file(tmp_path: Path):
     # create a temporary file with dummy URLs
     url_file = tmp_path / "urls.txt"
-    url_file.write_text("http://example.com/model1\nhttp://example.com/dataset1\n")
+    url_file.write_text("https://github.com/google-research/bert\n"
+        "https://github.com/SkyworkAI/Matrix-Game\n"
+    )
 
     result = run_cli([str(url_file)])
     assert result.returncode == 0
     assert "Processing 2 URLs" in result.stdout
-    assert "http://example.com/model1" in result.stdout
-    assert "http://example.com/dataset1" in result.stdout
+    assert "https://github.com/google-research/bert" in result.stdout
+    assert "https://github.com/SkyworkAI/Matrix-Game" in result.stdout
