@@ -125,11 +125,11 @@ def _check_model_card_performance(model_url: str) -> float:
                         else:
                             keyword_count += 1
                         counted_keywords.add(kw)
-                        print(kw)
+                        # print(kw)
 
         score = min(keyword_count / 10, 1.0)
 
-        print(f"Number of performance keywords = {keyword_count}")
+        # print(f"Number of performance keywords = {keyword_count}")
 
     except Exception as e:
         print(f"Error checking model card: {e}")
