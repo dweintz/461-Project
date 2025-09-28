@@ -85,7 +85,12 @@ def main() -> None:
     args = parse_args()
 
     url_file_path = args.url_file.resolve()
-
+    
+    # check GitHub token
+    GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+    if not GITHUB_TOKEN:
+        print("Warning: GITHUB_TOKEN environment variable is not set or empty.", file=sys.stderr)
+        
     # Configure the log destination first
     if args.log_file:
         os.environ["LOG_FILE"] = str(args.log_file)
@@ -244,7 +249,10 @@ def main() -> None:
         }
 
         # Print one JSON object per line (NDJSON)
-        print(json.dumps(output, separators=(',', ':')))
+        # print(json.dumps(output, separators=(',', ':')))
+        # Print one JSON object per line (NDJSON)
+        print(json.dumps(output, separators=(',', ':')) + "\n", end='')
+
 
     dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
     log.info("run finished", extra={"phase": "run", "function": "main", "latency_ms": dur_ms})
