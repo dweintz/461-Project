@@ -1,16 +1,17 @@
 '''
 CLI for scoring tool.
 '''
-
 from __future__ import annotations
+import sys, io
+_BOOT_STDOUT = sys.stdout
+sys.stdout = io.StringIO()
 import argparse
 from typing import List
 from pathlib import Path
 import time
-import io
+import os
 from contextlib import redirect_stdout
 import logging
-import sys, os
 import json
 from utils.logging import setup_logging, set_run_id, get_logger, set_url
 from url_handler.base import classify_url
@@ -27,6 +28,8 @@ from metrics.rampup import get_ramp_up
 from metrics.busfactor import get_bus_factor
 from metrics.base import get_repo_id
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
 
 MAX_WORKERS = int(os.environ.get("SCORER_MAX_WORKERS", "4"))
 
@@ -109,9 +112,13 @@ def main() -> None:
     setup_logging(level=args.log_level, json_lines=not args.log_text)
     run_id = set_run_id(args.run_id)
     log = get_logger("cli")
+    import logging
     for h in logging.getLogger().handlers:
         if isinstance(h, logging.StreamHandler):
             h.stream = sys.stderr
+
+    # --- restore real stdout now that imports are done ---
+    sys.stdout = _BOOT_STDOUT
 
     start_ns = time.perf_counter_ns()
     log.info("run started", extra={"phase": "run", "function": "main", "run_id": run_id})
