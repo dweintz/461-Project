@@ -132,7 +132,8 @@ def main() -> None:
         for url in line:
             log.info("processing url", extra={"phase": "controller", "url": url})
             try:
-                url_type = classify_url(url)
+                with redirect_stdout(io.StringIO()):
+                    url_type = classify_url(url)
                 log.info("classified", extra={"phase": "controller", "type": url_type})
             except Exception:
                 log.exception("classification failed", extra={"phase": "controller", "url": url})
@@ -208,7 +209,8 @@ def main() -> None:
             # update fields based on URL type
             for url, url_type in line.items():
                 try:
-                    repo = get_repo_id(url, url_type) or ""
+                    with redirect_stdout(io.StringIO()):
+                        repo = get_repo_id(url, url_type) or ""
                 except Exception:
                     log.exception("get_repo_id failed", extra={"url": url})
                     repo = ""
