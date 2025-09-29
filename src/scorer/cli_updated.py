@@ -203,7 +203,7 @@ def main() -> None:
             elif url_type == 'model':
                 size_dict, size_latency = get_size_score(url, url_type)
                 license, license_latency = get_license_score(url, url_type)
-                performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
+                performance_claims, performance_claims_latency = 0.0, 0.0 #get_performance_claims(url, url_type)
                 bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
                 ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
             log.info("url done", extra = {"phase": "controller", "url": url})
