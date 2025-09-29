@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 import re
 
+
 def run_radon(path: str) -> float:
     '''
     Function to run radon, a Python tool that analyzes source code complexity and maintainability.
@@ -43,6 +44,7 @@ def run_radon(path: str) -> float:
             grade = line.split(" -")[-1].strip()[:1]
             vals.append(score_map.get(grade, 0.0))
     return sum(vals)/len(vals) if vals else 0.0
+
 
 def run_lizard(path: str) -> Optional[Dict]:
     '''
@@ -83,8 +85,8 @@ def run_lizard(path: str) -> Optional[Dict]:
         return None
 
     # NLOC = non-comment lines of code
-    # CNN = cyclomatic complexity number - measures number of paths through a function
-    # token = number of syntactic tokens (operators, keywords, identifiers, etc)
+    # CNN = cyclomatic complexity number - measures paths through function
+    # token = number of syntactic (operators, keywords, identifiers, etc)
     # PARAM = number of parameters
     # length = total lines of code, including comments
     # location = path where function is defined
@@ -102,6 +104,7 @@ def run_lizard(path: str) -> Optional[Dict]:
     }
     return totals
 
+
 def score_from_lizard_totals(totals: dict) -> float:
     '''
     Function to calculate final score from dictionary returned by run_lizard().
@@ -110,7 +113,7 @@ def score_from_lizard_totals(totals: dict) -> float:
     if not totals:
         return 0.0
 
-    # metric 1: Cyclomatic complexity - measures number of paths through a function
+    # metric 1: Cyclomatic complexity - measures paths through function
     # decrease score as number of paths increase
     avg_ccn = totals.get("Avg CCN", 0)
     if avg_ccn <= 5:
@@ -149,10 +152,13 @@ def score_from_lizard_totals(totals: dict) -> float:
     # define weighted score
     weights = [0.5, 0.3, 0.2]
     components = [ccn_score, nloc_score, warning_score]
-    final_score = sum(w * c for w, c in zip(weights, components)) / sum(weights)
+    final_score = sum(
+        w * c for w, c in zip(weights, components)
+    ) / sum(weights)
 
     return final_score
- 
+
+
 def docstring_ratio(path: str) -> float:
     '''
     Function to count how many Python functions or classes have docstrings.
@@ -164,11 +170,15 @@ def docstring_ratio(path: str) -> float:
     for root, _, files in os.walk(path):
         for file in files:
             if file.endswith(".py"):
-                with open(os.path.join(root, file), "r", encoding = "utf-8", errors = "ignore") as fh:
+                with open(os.path.join(root, file),
+                          "r",
+                          encoding="utf-8",
+                          errors="ignore") as fh:
                     try:
                         tree = ast.parse(fh.read())
                         for node in ast.walk(tree):
-                            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                            if isinstance(node,
+                                          (ast.FunctionDef, ast.ClassDef)):
                                 total += 1
                                 if ast.get_docstring(node):
                                     documented += 1
@@ -178,22 +188,20 @@ def docstring_ratio(path: str) -> float:
     score = documented / total
     return score
 
+
 def _check_code_repo_quality(code_url: str) -> float:
     '''
     Function to analyze the quality of the code.
     '''
 
-    start_time = time.time()
     temp_dir = tempfile.mkdtemp()
-    
     try:
         # clone the repo
         try:
             Repo.clone_from(code_url, temp_dir)
         except Exception as e:
             print(f"Cannot clone repo for code quality check: {e}")
-            exit(1)
-        
+            exit(1)     
         # first reliability check - check for the word test in the files
         reliability = 0.0
         for _, _, files in os.walk(temp_dir):
@@ -201,13 +209,22 @@ def _check_code_repo_quality(code_url: str) -> float:
                 if "test" in file.lower():
                     reliability = 0.7
                     break
-        
         # second reliability check - check for testing frameworks
-        file_names = " ".join(os.listdir(temp_dir))
-        if any(x in file_names.lower() for x in ["pytest", "unittest", "mocha", "jest"]):
+        file_names = os.listdir(temp_dir)
+        file_names_str = " ".join(file_names).lower()
+
+        frameworks = ["pytest", "unittest", "mocha", "jest"]
+        found_framework = False
+
+        for fw in frameworks:
+            if fw in file_names_str:
+                found_framework = True
+                break
+
+        if found_framework:
             reliability = 1.0
 
-        # check complexity (number of files and classes, complexity, multi-language use, etc)
+        # check complexity (number of files and classes, complexity, etc)
         radon_score = run_radon(temp_dir)
         lizard_totals = run_lizard(temp_dir)
         lizard_score = 0.0
@@ -231,7 +248,13 @@ def _check_code_repo_quality(code_url: str) -> float:
             portability += 0.5
 
         # reusability (check for README and docstrings)
-        reusability = max(docstring_ratio(temp_dir), 0.5 if os.path.exists(os.path.join(temp_dir, "README.md")) else 0)
+        readme_path = os.path.join(temp_dir, "README.md")
+        if os.path.exists(readme_path):
+            readme_bonus = 0.5
+        else:
+            readme_bonus = 0
+
+        reusability = max(docstring_ratio(temp_dir), readme_bonus)
 
         # compute weighted score
         final_score = (
@@ -246,7 +269,8 @@ def _check_code_repo_quality(code_url: str) -> float:
 
     # remove the local copy of the repo
     finally:
-        shutil.rmtree(temp_dir, ignore_errors = True)
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
     '''
@@ -259,22 +283,20 @@ def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
     if url_type == 'code':
         # clone GitHub repo and check readme for performance claims
         score = _check_code_repo_quality(url)
-    
     latency = int((time.time() - start_time) * 1000)
-    
     return score, latency
 
-# TEMPORARY MAIN FUNCTION
-if __name__ == "__main__":
-    print("Starting code quality check...")
-    load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        raise RuntimeError("HF_TOKEN not found") 
-    print("Loaded token starts with:", hf_token[:10])
 
-    # code URL test
-    url_code = "https://github.com/google-research/bert"
-    url_type_code = "code"
-    score, latency = get_code_quality(url_code, url_type_code)
-    print(f"Code quality: Score = {score:.2f}, Latency = {latency}ms")
+# # TEMPORARY MAIN FUNCTION
+# if __name__ == "__main__":
+#     print("Starting code quality check...")
+#     load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
+#     hf_token = os.getenv("HF_TOKEN")
+#     if not hf_token:
+#         raise RuntimeError("HF_TOKEN not found") 
+#     print("Loaded token starts with:", hf_token[:10])
+#     # code URL test
+#     url_code = "https://github.com/google-research/bert"
+#     url_type_code = "code"
+#     score, latency = get_code_quality(url_code, url_type_code)
+#     print(f"Code quality: Score = {score:.2f}, Latency = {latency}ms")
