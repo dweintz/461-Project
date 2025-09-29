@@ -97,7 +97,7 @@ def main() -> None:
     GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
     if not GITHUB_TOKEN:
         print("Warning: GITHUB_TOKEN environment variable is not set or empty.", file=sys.stderr)
-        sys.exit(1)
+        # sys.exit(1)
         
     # Configure the log destination first
     if args.log_file:
@@ -140,8 +140,7 @@ def main() -> None:
 
             if url_type == "unknown":
                 log.warning("unknown url type", extra={"phase": "controller"})
-                print(f"Error: Unknown URL type for {urls}", file = sys.stderr)
-                sys.exit(1)
+                continue
             if url_type == "model":
                 handle_model_url(url)
                 line_classifications[url] = url_type
@@ -154,11 +153,11 @@ def main() -> None:
         classifications.append(line_classifications)
     
     # Calculate metrics
-    start_time = time.time()
+    
 
     for line in classifications:
+        start_time = time.time()
         # intialize all fields to zero
-
         # string fields
         name = ""
         category = ""
@@ -193,7 +192,7 @@ def main() -> None:
         }
 
         # update fields based on URL type
-        for url, url_type in zip(line.keys(), line.values()):
+        for url, url_type in line.items():
             name = get_repo_id(url, url_type)#url.split("/")[-1]
             name = name.split('/')[1]
             
@@ -267,6 +266,34 @@ def main() -> None:
         size_score = 0.0
         if size_dict:
             size_score = sum(size_dict.values()) / len(size_dict)
+        
+        if not line:  # nothing recognized on this line
+            # Still print a default row for this input line
+            output = {
+                "name": "",
+                "category": "",
+                "net_score": 0.0,
+                "net_score_latency": 0,
+                "ramp_up_time": 0.0,
+                "ramp_up_time_latency": 0,
+                "bus_factor": 0.0,
+                "bus_factor_latency": 0,
+                "performance_claims": 0.0,
+                "performance_claims_latency": 0,
+                "license": 0.0,
+                "license_latency": 0,
+                "size_score": {"raspberry_pi":0.0,"jetson_nano":0.0,"desktop_pc":0.0,"aws_server":0.0},
+                "size_score_latency": 0,
+                "dataset_and_code_score": 0.0,
+                "dataset_and_code_score_latency": 0,
+                "dataset_quality": 0.0,
+                "dataset_quality_latency": 0,
+                "code_quality": 0.0,
+                "code_quality_latency": 0
+            }
+            print(json.dumps(output, separators=(',', ':')))
+            sys.stdout.flush()
+            continue
 
         net_score = 0.15 * size_score + \
                     0.15 * license + \
