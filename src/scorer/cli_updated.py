@@ -7,14 +7,17 @@ import argparse
 from typing import List
 from pathlib import Path
 import time
+import io
+from contextlib import redirect_stdout
+import logging
 import sys
 import os
 import json
 from utils.logging import setup_logging, set_run_id, get_logger
 from url_handler.base import classify_url
-from url_handler.model import handle_model_url
-from url_handler.dataset import handle_dataset_url
-from url_handler.code import handle_code_url
+# from url_handler.model import handle_model_url
+# from url_handler.dataset import handle_dataset_url
+# from url_handler.code import handle_code_url
 from metrics.size import get_size_score
 from metrics.license import get_license_score
 from metrics.dataset_quality import get_dataset_quality_score
@@ -40,11 +43,6 @@ def parse_args() -> argparse.Namespace:
         "url_file",
         type=Path,
         help="Path to a newline-delimited file containing URLS of model/dataset/code"
-    )
-    parser.add_argument(
-        "--parallel",
-        action="store_true",
-        help="Calculate metrics in parallel"
     )
     parser.add_argument(
         "--log-file",
@@ -116,6 +114,9 @@ def main() -> None:
     setup_logging(level=args.log_level, json_lines=not args.log_text)
     run_id = set_run_id(args.run_id)
     log = get_logger("cli")
+    for h in logging.getLogger().handlers:
+        if isinstance(h, logging.StreamHandler):
+            h.stream = sys.stderr
 
     start_ns = time.perf_counter_ns()
     log.info("run started",
@@ -138,193 +139,237 @@ def main() -> None:
         for url in line:
             log.info("processing url", extra={"phase": "controller", "url": url})
             try:
-                url_type = classify_url(url)
+                with redirect_stdout(io.StringIO()):
+                    url_type = classify_url(url)
                 log.info("classified", extra={"phase": "controller", "type": url_type})
             except Exception:
-                log.exception("classification failed", extra={"phase": "controller"})
-                print(f"{url} -> ERROR: classification failed")
+                log.exception("classification failed",
+                              extra={"phase": "controller", "url": url})
+                print(f"{url} -> ERROR: classification failed", file=sys.stderr)
                 continue
 
             if url_type == "unknown":
                 log.warning("unknown url type", extra={"phase": "controller"})
                 continue
             if url_type == "model":
-                handle_model_url(url)
+                # try:
+                #     with redirect_stdout(io.StringIO()):
+                #         handle_model_url(url)
+                # except Exception:
+                #     log.exception("handle_model_url failed", extra={"url": url})
                 line_classifications[url] = url_type
             elif url_type == "dataset":
-                handle_dataset_url(url)
+                # try:
+                #     with redirect_stdout(io.StringIO()):
+                #         handle_dataset_url(url)
+                # except Exception:
+                #     log.exception("handle_dataset_url failed", extra={"url": url})
                 line_classifications[url] = url_type
             elif url_type == "code":
-                handle_code_url(url)
+                # try:
+                #     with redirect_stdout(io.StringIO()):
+                #         handle_code_url(url)
+                # except Exception:
+                #     log.exception("handle_code_url failed", extra={"url": url})
                 line_classifications[url] = url_type
         classifications.append(line_classifications)
 
     # Calculate metrics
     for line in classifications:
         start_time = time.time()
-        # intialize all fields to zero
-        # string fields
-        name = ""
-        category = ""
+        try:
+            # intialize all fields to zero
+            # string fields
+            name = ""
+            category = ""
 
-        # float scores (0–1)
-        net_score = 0.0
-        ramp_up = 0.0
-        bus_factor = 0.0
-        performance_claims = 0.0
-        license = 0.0
-        dataset_and_code_score = 0.0
-        dataset_quality = 0.0
-        code_quality = 0.0
+            # float scores (0–1)
+            net_score = 0.0
+            ramp_up = 0.0
+            bus_factor = 0.0
+            performance_claims = 0.0
+            license = 0.0
+            dataset_and_code_score = 0.0
+            dataset_quality = 0.0
+            code_quality = 0.0
 
-        # latencies (milliseconds)
-        net_score_latency = 0
-        ramp_up_latency = 0
-        bus_factor_latency = 0
-        performance_claims_latency = 0
-        license_latency = 0
-        size_latency = 0
-        dataset_and_code_score_latency = 0
-        dataset_quality_latency = 0
-        code_quality_latency = 0
+            # latencies (milliseconds)
+            net_score_latency = 0
+            ramp_up_latency = 0
+            bus_factor_latency = 0
+            performance_claims_latency = 0
+            license_latency = 0
+            size_latency = 0
+            dataset_and_code_score_latency = 0
+            dataset_quality_latency = 0
+            code_quality_latency = 0
 
-        # object field (dict)
-        size_dict = {
-            "raspberry_pi": 0.0,
-            "jetson_nano": 0.0,
-            "desktop_pc": 0.0,
-            "aws_server": 0.0
-        }
+            # object field (dict)
+            size_dict = {
+                "raspberry_pi": 0.0,
+                "jetson_nano": 0.0,
+                "desktop_pc": 0.0,
+                "aws_server": 0.0
+            }
 
-        # update fields based on URL type
-        for url, url_type in line.items():
-            name = get_repo_id(url, url_type)
-            name = name.split('/')[1]
+            # update fields based on URL type
+            for url, url_type in line.items():
+                try:
+                    with redirect_stdout(io.StringIO()):
+                        repo = get_repo_id(url, url_type) or ""
+                except Exception:
+                    log.exception("get_repo_id failed", extra={"url": url})
+                    repo = ""
+                parts = repo.split("/", 1)
+                name = parts[1] if len(parts) == 2 else (parts[0] if parts else "")
+                category = url_type.upper()
 
-            category = url_type.upper()
+                tasks = {}
+                if url_type == 'code':
+                    tasks["code_quality"] = lambda: get_code_quality(url, url_type)
+                elif url_type == 'dataset':
+                    tasks["dataset_quality"] = lambda: get_dataset_quality_score(
+                        url, url_type)
+                    tasks["dataset_and_code_score"] = \
+                        lambda: get_dataset_and_code_score(url, url_type)
+                elif url_type == 'model':
+                    tasks["size"] = lambda: get_size_score(url, url_type)
+                    tasks["license"] = lambda: get_license_score(url, url_type)
+                    tasks["performance_claims"] = lambda: get_performance_claims(
+                        url, url_type)
+                    tasks["bus_factor"] = lambda: get_bus_factor(url, url_type)
+                    tasks["ramp_up"] = lambda: get_ramp_up(url, url_type)
+                with redirect_stdout(io.StringIO()):
+                    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+                        futures = {
+                            ex.submit(fn): met_name for met_name, fn in tasks.items()
+                        }
+                        for fut in as_completed(futures):
+                            metric_name = futures[fut]
+                            try:
+                                val, lat = fut.result()
+                            except Exception:
+                                log.exception("metric failed",
+                                              extra={"phase": "metrics",
+                                                     "metric": metric_name,
+                                                     "url": url})
+                                val, lat = (0.0, 0)
+                            if metric_name == "code_quality":
+                                code_quality, code_quality_latency = val, lat
+                            elif metric_name == "dataset_quality":
+                                dataset_quality, dataset_quality_latency = val, lat
+                            elif metric_name == "dataset_and_code_score":
+                                dataset_and_code_score = val
+                                dataset_and_code_score_latency = lat
+                            elif metric_name == "size":
+                                size_dict, size_latency = val, lat
+                            elif metric_name == "license":
+                                license, license_latency = val, lat
+                            elif metric_name == "performance_claims":
+                                performance_claims = val
+                                performance_claims_latency = lat
+                            elif metric_name == "bus_factor":
+                                bus_factor, bus_factor_latency = val, lat
+                            elif metric_name == "ramp_up":
+                                ramp_up, ramp_up_latency = val, lat
 
-            tasks = {}
-            if url_type == 'code':
-                tasks["code_quality"] = lambda: get_code_quality(url, url_type)
-            elif url_type == 'dataset':
-                tasks["dataset_quality"] = lambda: get_dataset_quality_score(
-                    url, url_type)
-                tasks["dataset_and_code_score"] = lambda: get_dataset_and_code_score(
-                    url, url_type)
-            elif url_type == 'model':
-                tasks["size"] = lambda: get_size_score(url, url_type)
-                tasks["license"] = lambda: get_license_score(url, url_type)
-                tasks["performance_claims"] = lambda: get_performance_claims(
-                    url, url_type)
-                tasks["bus_factor"] = lambda: get_bus_factor(url, url_type)
-                tasks["ramp_up"] = lambda: get_ramp_up(url, url_type)
+            if not line:  # nothing recognized on this line
+                # Still print a default row for this input line
+                output = {
+                    "name": "",
+                    "category": "",
+                    "net_score": 0.0,
+                    "net_score_latency": 0,
+                    "ramp_up_time": 0.0,
+                    "ramp_up_time_latency": 0,
+                    "bus_factor": 0.0,
+                    "bus_factor_latency": 0,
+                    "performance_claims": 0.0,
+                    "performance_claims_latency": 0,
+                    "license": 0.0,
+                    "license_latency": 0,
+                    "size_score": {"raspberry_pi": 0.0,
+                                   "jetson_nano": 0.0,
+                                   "desktop_pc": 0.0,
+                                   "aws_server": 0.0},
+                    "size_score_latency": 0,
+                    "dataset_and_code_score": 0.0,
+                    "dataset_and_code_score_latency": 0,
+                    "dataset_quality": 0.0,
+                    "dataset_quality_latency": 0,
+                    "code_quality": 0.0,
+                    "code_quality_latency": 0
+                }
+                print(json.dumps(output, separators=(',', ':')))
+                sys.stdout.flush()
+                continue
 
-            # Run tasks (parallel if requested)
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
-                futures = {ex.submit(fn): met_name for met_name, fn in tasks.items()}
-                for fut in as_completed(futures):
-                    metric_name = futures[fut]
-                    try:
-                        val, lat = fut.result()
-                    except Exception:
-                        log.exception("metric failed", extra={"phase": "metrics",
-                                                              "metric": metric_name,
-                                                              "url": url})
-                        val, lat = (0.0, 0)
-                    if metric_name == "code_quality":
-                        code_quality, code_quality_latency = val, lat
-                    elif metric_name == "dataset_quality":
-                        dataset_quality, dataset_quality_latency = val, lat
-                    elif metric_name == "dataset_and_code_score":
-                        dataset_and_code_score = val
-                        dataset_and_code_score_latency = lat
-                    elif metric_name == "size":
-                        size_dict, size_latency = val, lat
-                    elif metric_name == "license":
-                        license, license_latency = val, lat
-                    elif metric_name == "performance_claims":
-                        performance_claims, performance_claims_latency = val, lat
-                    elif metric_name == "bus_factor":
-                        bus_factor, bus_factor_latency = val, lat
-                    elif metric_name == "ramp_up":
-                        ramp_up, ramp_up_latency = val, lat
+            # Compute net score
+            size_score = 0.0
+            if size_dict:
+                size_score = sum(size_dict.values()) / len(size_dict)
 
-        if not line:  # nothing recognized on this line
-            # Still print a default row for this input line
+            net_score = (
+                0.15 * size_score +
+                0.15 * license +
+                0.10 * ramp_up +
+                0.10 * bus_factor +
+                0.15 * dataset_quality +
+                0.10 * code_quality +
+                0.15 * performance_claims +
+                0.10 * dataset_and_code_score
+            )
+
+            # Compute net score latency in milliseconds
+            net_score_latency = int((time.time() - start_time) * 1000)
+
+            # Build NDJSON output
             output = {
-                "name": "",
-                "category": "",
-                "net_score": 0.0,
-                "net_score_latency": 0,
-                "ramp_up_time": 0.0,
-                "ramp_up_time_latency": 0,
-                "bus_factor": 0.0,
-                "bus_factor_latency": 0,
-                "performance_claims": 0.0,
-                "performance_claims_latency": 0,
-                "license": 0.0,
-                "license_latency": 0,
+                "name": name,
+                "category": category,
+                "net_score": round(net_score, 2),
+                "net_score_latency": net_score_latency,
+                "ramp_up_time": round(ramp_up, 2),
+                "ramp_up_time_latency": ramp_up_latency,
+                "bus_factor": round(bus_factor, 2),
+                "bus_factor_latency": bus_factor_latency,
+                "performance_claims": round(performance_claims, 2),
+                "performance_claims_latency": performance_claims_latency,
+                "license": round(license, 2),
+                "license_latency": license_latency,
+                "size_score":
+                    {k: round(v, 2) for k, v in size_dict.items()} if size_dict else {},
+                "size_score_latency": size_latency,
+                "dataset_and_code_score": round(dataset_and_code_score, 2),
+                "dataset_and_code_score_latency": dataset_and_code_score_latency,
+                "dataset_quality": round(dataset_quality, 2),
+                "dataset_quality_latency": dataset_quality_latency,
+                "code_quality": round(code_quality, 2),
+                "code_quality_latency": code_quality_latency
+            }
+
+            print(json.dumps(output, separators=(',', ':')))
+            sys.stdout.flush()
+        except Exception:
+            log.exception("unexpected error while scoring line", extra={"phase": "run"})
+            print(json.dumps({
+                "name": "", "category": "",
+                "net_score": 0.0, "net_score_latency": 0,
+                "ramp_up_time": 0.0, "ramp_up_time_latency": 0,
+                "bus_factor": 0.0, "bus_factor_latency": 0,
+                "performance_claims": 0.0, "performance_claims_latency": 0,
+                "license": 0.0, "license_latency": 0,
                 "size_score": {"raspberry_pi": 0.0,
                                "jetson_nano": 0.0,
                                "desktop_pc": 0.0,
                                "aws_server": 0.0},
                 "size_score_latency": 0,
-                "dataset_and_code_score": 0.0,
-                "dataset_and_code_score_latency": 0,
-                "dataset_quality": 0.0,
-                "dataset_quality_latency": 0,
-                "code_quality": 0.0,
-                "code_quality_latency": 0
-            }
-            print(json.dumps(output, separators=(',', ':')))
+                "dataset_and_code_score": 0.0, "dataset_and_code_score_latency": 0,
+                "dataset_quality": 0.0, "dataset_quality_latency": 0,
+                "code_quality": 0.0, "code_quality_latency": 0
+            }, separators=(',', ':')))
             sys.stdout.flush()
             continue
-
-        # Compute net score
-        size_score = 0.0
-        if size_dict:
-            size_score = sum(size_dict.values()) / len(size_dict)
-
-        net_score = (
-            0.15 * size_score +
-            0.15 * license +
-            0.10 * ramp_up +
-            0.10 * bus_factor +
-            0.15 * dataset_quality +
-            0.10 * code_quality +
-            0.15 * performance_claims +
-            0.10 * dataset_and_code_score
-        )
-
-        # Compute net score latency in milliseconds
-        net_score_latency = int((time.time() - start_time) * 1000)
-
-        # Build NDJSON output
-        output = {
-            "name": name,
-            "category": category,
-            "net_score": round(net_score, 2),
-            "net_score_latency": net_score_latency,
-            "ramp_up_time": round(ramp_up, 2),
-            "ramp_up_time_latency": ramp_up_latency,
-            "bus_factor": round(bus_factor, 2),
-            "bus_factor_latency": bus_factor_latency,
-            "performance_claims": round(performance_claims, 2),
-            "performance_claims_latency": performance_claims_latency,
-            "license": round(license, 2),
-            "license_latency": license_latency,
-            "size_score":
-                {k: round(v, 2) for k, v in size_dict.items()} if size_dict else {},
-            "size_score_latency": size_latency,
-            "dataset_and_code_score": round(dataset_and_code_score, 2),
-            "dataset_and_code_score_latency": dataset_and_code_score_latency,
-            "dataset_quality": round(dataset_quality, 2),
-            "dataset_quality_latency": dataset_quality_latency,
-            "code_quality": round(code_quality, 2),
-            "code_quality_latency": code_quality_latency
-        }
-
-        print(json.dumps(output, separators=(',', ':')))
 
     dur_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
     log.info("run finished",
