@@ -6,18 +6,18 @@ import os
 import shutil
 import tempfile
 import time
-import subprocess, sys
+import subprocess
+import sys
 from git import Repo
 from typing import Tuple, Dict, Optional
 import ast
-from dotenv import load_dotenv
-from pathlib import Path
 import re
 
 
 def run_radon(path: str) -> float:
     '''
-    Function to run radon, a Python tool that analyzes source code complexity and maintainability.
+    Function to run radon, a Python tool that analyzes source code complexity and
+    maintainability.
     '''
     cmds = [
             [sys.executable, "-m", "radon", "mi", "-s", path],  # preferred
@@ -48,7 +48,8 @@ def run_radon(path: str) -> float:
 
 def run_lizard(path: str) -> Optional[Dict]:
     '''
-    Function to run lizard, a multi-language code analysis tool that analyzes function complexity.
+    Function to run lizard, a multi-language code analysis tool that analyzes function
+    complexity.
     '''
   
     for cmd in ([sys.executable, "-m", "lizard", path], ["lizard", path]):
@@ -293,7 +294,7 @@ def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
 #     load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
 #     hf_token = os.getenv("HF_TOKEN")
 #     if not hf_token:
-#         raise RuntimeError("HF_TOKEN not found") 
+#         raise RuntimeError("HF_TOKEN not found")
 #     print("Loaded token starts with:", hf_token[:10])
 #     # code URL test
 #     url_code = "https://github.com/google-research/bert"
