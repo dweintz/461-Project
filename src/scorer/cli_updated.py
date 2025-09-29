@@ -1,6 +1,7 @@
 """
 CLI for scoring tool.
 """
+
 from __future__ import annotations
 import sys
 import io
@@ -244,9 +245,9 @@ def main() -> None:
                     tasks["dataset_quality"] = lambda: get_dataset_quality_score(
                         url, url_type
                     )
-                    tasks[
-                        "dataset_and_code_score"
-                    ] = lambda: get_dataset_and_code_score(url, url_type)
+                    tasks["dataset_and_code_score"] = (
+                        lambda: get_dataset_and_code_score(url, url_type)
+                    )
                 elif url_type == "model":
                     tasks["size"] = lambda: get_size_score(url, url_type)
                     tasks["license"] = lambda: get_license_score(url, url_type)
@@ -361,9 +362,9 @@ def main() -> None:
                 "performance_claims_latency": performance_claims_latency,
                 "license": round(license, 2),
                 "license_latency": license_latency,
-                "size_score": {k: round(v, 2) for k, v in size_dict.items()}
-                if size_dict
-                else {},
+                "size_score": (
+                    {k: round(v, 2) for k, v in size_dict.items()} if size_dict else {}
+                ),
                 "size_score_latency": size_latency,
                 "dataset_and_code_score": round(dataset_and_code_score, 2),
                 "dataset_and_code_score_latency": dataset_and_code_score_latency,

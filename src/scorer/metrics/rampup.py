@@ -348,9 +348,7 @@ def get_ramp_up(url: str, url_type: str) -> Tuple[float, int]:
         kind = (
             "dataset"
             if url_type.lower() == "dataset"
-            else "model"
-            if url_type.lower() == "model"
-            else "code"
+            else "model" if url_type.lower() == "model" else "code"
         )
         clone_url = _to_clone_url(url, kind)
         env = os.environ.copy()

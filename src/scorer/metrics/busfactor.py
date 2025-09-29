@@ -6,6 +6,7 @@ Fixes:
 - Shallow clone + skip LFS blobs to avoid big downloads.
 - No prints to stdout; return neutral-low on failure so NDJSON stays clean.
 """
+
 from __future__ import annotations
 
 import os
