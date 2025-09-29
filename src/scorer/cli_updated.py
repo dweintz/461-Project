@@ -282,7 +282,7 @@ def main() -> None:
                 # Still print a default row for this input line
                 output = {
                     "name": "",
-                    "category": "",
+                    "category": "UNKNOWN",
                     "net_score": 0.0,
                     "net_score_latency": 0,
                     "ramp_up_time": 0.0,
