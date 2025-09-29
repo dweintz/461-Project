@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-def read_urls(file_path: Path) -> List[str]:
+def read_urls(file_path: Path) -> List[List[str]]:
     '''
     read newline-delimited URLs from a file
     '''
@@ -212,36 +212,12 @@ def main() -> None:
                 tasks["ramp_up"] = lambda: get_ramp_up(url, url_type)
 
             # Run tasks (parallel if requested)
-            if tasks:
-                with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
-                    futures = {ex.submit(fn): met_name for met_name, fn in tasks.items()}
-                    for fut in as_completed(futures):
-                        metric_name = futures[fut]
-                        try:
-                            val, lat = fut.result()
-                        except Exception:
-                            log.exception("metric failed", extra={"phase": "metrics", "metric": metric_name, "url": url})
-                            val, lat = (0.0, 0)
-                        if metric_name == "code_quality":
-                            code_quality, code_quality_latency = val, lat
-                        elif metric_name == "dataset_quality":
-                            dataset_quality, dataset_quality_latency = val, lat
-                        elif metric_name == "dataset_and_code_score":
-                            dataset_and_code_score, dataset_and_code_score_latency = val, lat
-                        elif metric_name == "size":
-                            size_dict, size_latency = val, lat
-                        elif metric_name == "license":
-                            license, license_latency = val, lat
-                        elif metric_name == "performance_claims":
-                            performance_claims, performance_claims_latency = val, lat
-                        elif metric_name == "bus_factor":
-                            bus_factor, bus_factor_latency = val, lat
-                        elif metric_name == "ramp_up":
-                            ramp_up, ramp_up_latency = val, lat
-            else:
-                for metric_name, fn in tasks.items():
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+                futures = {ex.submit(fn): met_name for met_name, fn in tasks.items()}
+                for fut in as_completed(futures):
+                    metric_name = futures[fut]
                     try:
-                        val, lat = fn()
+                        val, lat = fut.result()
                     except Exception:
                         log.exception("metric failed", extra={"phase": "metrics", "metric": metric_name, "url": url})
                         val, lat = (0.0, 0)
