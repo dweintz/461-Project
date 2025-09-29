@@ -45,8 +45,9 @@ def test_get_dataset_quality_score_wrong_type():
     assert isinstance(latency, int)
 
 
-@patch("src.scorer.metrics.dataset_quality.get_repo_id",
-       side_effect=Exception("bad repo"))
+@patch(
+    "src.scorer.metrics.dataset_quality.get_repo_id", side_effect=Exception("bad repo")
+)
 def test_get_dataset_quality_score_repo_id_failure(mock_get_repo_id):
     score, latency = dataset_quality.get_dataset_quality_score("fake_url", "dataset")
     assert score is None

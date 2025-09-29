@@ -24,6 +24,7 @@ from git import Repo, GitCommandError
 # Optional: if huggingface_hub is installed, we can resolve code repo links
 try:
     from huggingface_hub import HfApi
+
     HF = HfApi()
 except Exception:
     HF = None  # still works; we’ll just clone the HF git repo if needed
@@ -31,14 +32,62 @@ except Exception:
 SINCE_DAYS_DEFAULT = 600
 
 CODE_EXTS = {
-    ".py", ".ipynb", ".md", ".rst", ".txt", ".json", ".yaml", ".yml", ".ini", ".toml",
-    ".cfg", ".sh", ".bat", ".ps1", ".js", ".ts", ".jsx", ".tsx", ".java", ".scala",
-    ".kt", ".c", ".h", ".hpp", ".hh", ".cc", ".cpp", ".m", ".mm", ".go", ".rs",
-    ".rb", ".php", ".pl", ".r", ".swift", ".css", ".scss", ".html", ".xml"
+    ".py",
+    ".ipynb",
+    ".md",
+    ".rst",
+    ".txt",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".ini",
+    ".toml",
+    ".cfg",
+    ".sh",
+    ".bat",
+    ".ps1",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".java",
+    ".scala",
+    ".kt",
+    ".c",
+    ".h",
+    ".hpp",
+    ".hh",
+    ".cc",
+    ".cpp",
+    ".m",
+    ".mm",
+    ".go",
+    ".rs",
+    ".rb",
+    ".php",
+    ".pl",
+    ".r",
+    ".swift",
+    ".css",
+    ".scss",
+    ".html",
+    ".xml",
 }
 BINARY_SKIP_EXTS = {
-    ".bin", ".safetensors", ".pt", ".pth", ".onnx", ".tflite", ".pb",
-    ".tar", ".gz", ".xz", ".zip", ".7z", ".rar", ".pdf"
+    ".bin",
+    ".safetensors",
+    ".pt",
+    ".pth",
+    ".onnx",
+    ".tflite",
+    ".pb",
+    ".tar",
+    ".gz",
+    ".xz",
+    ".zip",
+    ".7z",
+    ".rar",
+    ".pdf",
 }
 
 _GH_LINK_RE = re.compile(r"https?://github\.com/\S+/\S+", re.IGNORECASE)
@@ -118,6 +167,7 @@ def _resolve_code_repo_for_target(url: str, url_type: str) -> str:
     # Unknown host: return as-is; Repo.clone_from may still handle it if it’s plain git
     return url
 
+
 # -------- analysis helpers (unchanged) --------
 
 
@@ -136,15 +186,18 @@ def _is_code_like(path: str) -> bool:
 
 def _first_author_email(repo: Repo, file_path: str) -> str | None:
     try:
-        out = repo.git.log("--diff-filter=A", "--reverse", "--format=%ae", "--",
-                           file_path)
+        out = repo.git.log(
+            "--diff-filter=A", "--reverse", "--format=%ae", "--", file_path
+        )
         line = out.splitlines()[0].strip() if out else ""
         return line or None
     except GitCommandError:
         return None
 
 
-def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
+def _collect_doa_inputs(
+    repo: Repo, since_days: int
+) -> Tuple[
     Dict[str, Dict[str, int]], Dict[str, int], Dict[str, Set[str]], Dict[str, str]
 ]:
     since_dt = dt.datetime.utcnow() - dt.timedelta(days=since_days)
@@ -155,9 +208,8 @@ def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
     contributors: Dict[str, Set[str]] = defaultdict(set)
     creators: Dict[str, str] = {}
 
-    commits = (
-        list(repo.iter_commits("HEAD", since=since_arg))
-        or list(repo.iter_commits("HEAD"))
+    commits = list(repo.iter_commits("HEAD", since=since_arg)) or list(
+        repo.iter_commits("HEAD")
     )
     for c in commits:
         author = (c.author.email or c.author.name or "unknown").strip().lower()
@@ -177,16 +229,21 @@ def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
     return dl, total_by_file, contributors, creators
 
 
-def _doa(author: str, file_path: str,
-         dl: Dict[str, Dict[str, int]],
-         total_by_file: Dict[str, int],
-         contributors: Dict[str, Set[str]],
-         creators: Dict[str, str]) -> float:
+def _doa(
+    author: str,
+    file_path: str,
+    dl: Dict[str, Dict[str, int]],
+    total_by_file: Dict[str, int],
+    contributors: Dict[str, Set[str]],
+    creators: Dict[str, str],
+) -> float:
     DL = dl[file_path].get(author, 0)
     AC = max(0, total_by_file[file_path] - DL)
     FA = (
-        1 if creators.get(file_path, "").lower() == author.lower()
-        and creators[file_path] != "" else 0
+        1
+        if creators.get(file_path, "").lower() == author.lower()
+        and creators[file_path] != ""
+        else 0
     )
     return 3.293 + 1.098 * FA + 0.164 * DL - 0.321 * math.log(1 + AC)
 
@@ -197,8 +254,10 @@ def _authors_by_file(dl, total_by_file, contributors, creators) -> Dict[str, Set
         if total_by_file[f] == 0:
             authors_of_file[f] = set()
             continue
-        doa_by_author = {a: _doa(a, f, dl, total_by_file, contributors, creators)
-                         for a in contributors.get(f, set())}
+        doa_by_author = {
+            a: _doa(a, f, dl, total_by_file, contributors, creators)
+            for a in contributors.get(f, set())
+        }
         if not doa_by_author:
             authors_of_file[f] = set()
             continue
@@ -237,8 +296,7 @@ def _compute_bus_factor(authors_of_file: Dict[str, Set[str]]) -> Tuple[int, List
         if not active_authors:
             return len(removed), removed
         coverage = {
-            a: sum(1 for f in files if a in authors_of_file[f])
-            for a in active_authors
+            a: sum(1 for f in files if a in authors_of_file[f]) for a in active_authors
         }
         top_author = max(coverage.items(), key=lambda kv: kv[1])[0]
         removed.append(top_author)
@@ -248,17 +306,19 @@ def _compute_bus_factor(authors_of_file: Dict[str, Set[str]]) -> Tuple[int, List
 
 
 def _normalize_score(bus_factor: int, authors_of_file: Dict[str, Set[str]]) -> float:
-    active_authors: Set[str] = set().union(*authors_of_file.values()) \
-        if authors_of_file else set()
+    active_authors: Set[str] = (
+        set().union(*authors_of_file.values()) if authors_of_file else set()
+    )
     denom = max(1, len(active_authors))
     return min(1.0, bus_factor / denom)
+
 
 # -------- public API --------
 
 
-def get_bus_factor(url: str,
-                   url_type: str,
-                   since_days: int = SINCE_DAYS_DEFAULT) -> Tuple[float, int]:
+def get_bus_factor(
+    url: str, url_type: str, since_days: int = SINCE_DAYS_DEFAULT
+) -> Tuple[float, int]:
     """
     Resolve to a *code* repository (GitHub if available), compute bus factor, and
     return (score, latency_ms).
@@ -270,13 +330,15 @@ def get_bus_factor(url: str,
         env = os.environ.copy()
         env.setdefault("GIT_LFS_SKIP_SMUDGE", "1")
         repo = Repo.clone_from(
-            clone_url, temp_dir,
+            clone_url,
+            temp_dir,
             multi_options=["--depth=200"],  # shallow history speeds things up
-            env=env
+            env=env,
         )
 
-        dl, total_by_file, contributors, creators = _collect_doa_inputs(repo,
-                                                                        since_days)
+        dl, total_by_file, contributors, creators = _collect_doa_inputs(
+            repo, since_days
+        )
         if not total_by_file:
             return 0.0, int((time.time() - start) * 1000)
 

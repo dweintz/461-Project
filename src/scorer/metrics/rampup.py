@@ -50,11 +50,27 @@ def _to_clone_url(url: str, url_type: str) -> str:
 
 
 README_CANDIDATES = [
-    "README.md", "readme.md", "README.rst", "readme.rst", "README", "Readme.md",
-    "docs/README.md", "docs/index.md"
+    "README.md",
+    "readme.md",
+    "README.rst",
+    "readme.rst",
+    "README",
+    "Readme.md",
+    "docs/README.md",
+    "docs/index.md",
 ]
-SKIP_DIRS = {".git", ".hg", ".svn", "__pycache__", ".venv", "venv", "env",
-             "node_modules", "dist", "build"}
+SKIP_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "node_modules",
+    "dist",
+    "build",
+}
 
 
 def _read_first_readme(repo_dir: str) -> str:
@@ -118,7 +134,7 @@ _HEUR_PATTERNS = [
     r"\btroubleshoot",
     r"\bfaq\b",
     r"\bdocs?\b",
-    r"\btutorial\b"
+    r"\btutorial\b",
 ]
 
 
@@ -131,10 +147,12 @@ def _heuristic_rampup(readme: str, tree: str) -> float:
 def _session_with_retry() -> requests.Session:
     s = requests.Session()
     r = Retry(
-        total=3, connect=3, read=3,
+        total=3,
+        connect=3,
+        read=3,
         backoff_factor=0.5,
         status_forcelist=(429, 500, 502, 503, 504),
-        allowed_methods=frozenset(["POST"])
+        allowed_methods=frozenset(["POST"]),
     )
     s.mount("https://", HTTPAdapter(max_retries=r))
     s.mount("http://", HTTPAdapter(max_retries=r))
@@ -169,7 +187,7 @@ def _extract_json_first(s: str) -> dict | None:
             if depth > 0:
                 depth -= 1
                 if depth == 0 and start != -1:
-                    snippet = s[start:i+1]
+                    snippet = s[start : i + 1]
                     try:
                         return json.loads(snippet)
                     except Exception:
@@ -230,10 +248,11 @@ def _ask_llm(readme: str, tree: str) -> Optional[float]:
     readme = (readme or "").strip()
     if len(readme) > 20000:
         readme = readme[:20000] + "\n\n[TRUNCATED]"
-    user_prompt_1 = USER_PROMPT_TEMPLATE.format(
-        n_files=120, tree=tree[:8000], readme=readme) + \
-        "\n\nReturn ONLY strict JSON: \
-        {\"score\": <float 0..1>, \"rationale\": \"<=200 chars\"}."
+    user_prompt_1 = (
+        USER_PROMPT_TEMPLATE.format(n_files=120, tree=tree[:8000], readme=readme)
+        + '\n\nReturn ONLY strict JSON: \
+        {"score": <float 0..1>, "rationale": "<=200 chars"}.'
+    )
 
     # Preflight debug
     payload = _build_payload(user_prompt_1)
@@ -241,9 +260,15 @@ def _ask_llm(readme: str, tree: str) -> Optional[float]:
     # Send with retries
     session = _session_with_retry()
     try:
-        resp = session.post(url, headers={"Authorization": f"Bearer {api_key}",
-                                          "Content-Type": "application/json"},
-                            data=payload_str, timeout=90)
+        resp = session.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            data=payload_str,
+            timeout=90,
+        )
     except requests.exceptions.Timeout:
         return None
     except requests.exceptions.SSLError:
@@ -278,14 +303,20 @@ def _ask_llm(readme: str, tree: str) -> Optional[float]:
 
     # Second pass: ultra-strict re-ask (short, no repo text again)
     user_prompt_2 = (
-        'Output EXACTLY this JSON (no analysis, no extra keys, no markdown): '
+        "Output EXACTLY this JSON (no analysis, no extra keys, no markdown): "
         '{"score": <float 0..1>, "rationale": "<=200 chars>"}'
     )
     payload2 = _build_payload(user_prompt_2)
     try:
-        resp2 = session.post(url, headers={"Authorization": f"Bearer {api_key}",
-                                           "Content-Type": "application/json"},
-                             data=json.dumps(payload2), timeout=60)
+        resp2 = session.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            data=json.dumps(payload2),
+            timeout=60,
+        )
     except Exception:
         return None
 
@@ -315,8 +346,10 @@ def get_ramp_up(url: str, url_type: str) -> Tuple[float, int]:
     temp_dir = tempfile.mkdtemp()
     try:
         kind = (
-            "dataset" if url_type.lower() == "dataset"
-            else "model" if url_type.lower() == "model"
+            "dataset"
+            if url_type.lower() == "dataset"
+            else "model"
+            if url_type.lower() == "model"
             else "code"
         )
         clone_url = _to_clone_url(url, kind)

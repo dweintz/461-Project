@@ -1,6 +1,6 @@
-'''
+"""
 Evaluate model performance claims.
-'''
+"""
 
 import os
 import shutil
@@ -15,17 +15,17 @@ import re
 
 
 def get_performance_claims(url: str, url_type: str) -> Tuple[float, int]:
-    '''
+    """
     Function to get model or code performance claims based on URL type.
-    '''
+    """
 
     start_time = time.time()
     score = 0.0
 
-    if url_type == 'code':
+    if url_type == "code":
         # clone GitHub repo and check readme for performance claims
         score = _check_code_repo_performance(url)
-    elif url_type == 'model':
+    elif url_type == "model":
         # check Hugging face model card for performance claims
         score = _check_model_card_performance(url)
 
@@ -35,9 +35,9 @@ def get_performance_claims(url: str, url_type: str) -> Tuple[float, int]:
 
 
 def _check_code_repo_performance(code_url: str) -> float:
-    '''
+    """
     Function to check the code repo for performance claims.
-    '''
+    """
 
     score = 0.0
     temp_dir = tempfile.mkdtemp()
@@ -75,9 +75,9 @@ def _check_code_repo_performance(code_url: str) -> float:
 
 
 def _check_model_card_performance(model_url: str) -> float:
-    '''
+    """
     Function to check the model card/README on Hugging Face for performance claims.
-    '''
+    """
 
     load_dotenv(dotenv_path=Path(__file__).resolve().parents[3] / ".env")
     hf_token = os.getenv("HF_TOKEN")
@@ -102,9 +102,7 @@ def _check_model_card_performance(model_url: str) -> float:
 
         # download README.md from the repo
         readme_path = hf_hub_download(
-            repo_id=model_id,
-            filename="README.md",
-            token=hf_token
+            repo_id=model_id, filename="README.md", token=hf_token
         )
 
         # read full text
@@ -114,13 +112,49 @@ def _check_model_card_performance(model_url: str) -> float:
         # define keywords to check in the readme
         sentences = re.split(r"[.!?]", text)
         keywords = [
-            "benchmark", "evaluation", "performance", "metric", "score", "result",
-            "outcome", "effectiveness", "efficacy", "validation", "accuracy", "f1",
-            "precision", "recall", "auc", "roc", "top-1", "top-5", "mse", "mae", "rmse",
-            "loss", "cross-entropy", "log-loss", "bleu", "rouge", "meteor",
-            "perplexity", "iou", "ap", "map", "precision-recall", "latency",
-            "throughput", "fps", "speed", "memory", "params", "size", "parameter",
-            "parameters", "recognition", "beneficial"
+            "benchmark",
+            "evaluation",
+            "performance",
+            "metric",
+            "score",
+            "result",
+            "outcome",
+            "effectiveness",
+            "efficacy",
+            "validation",
+            "accuracy",
+            "f1",
+            "precision",
+            "recall",
+            "auc",
+            "roc",
+            "top-1",
+            "top-5",
+            "mse",
+            "mae",
+            "rmse",
+            "loss",
+            "cross-entropy",
+            "log-loss",
+            "bleu",
+            "rouge",
+            "meteor",
+            "perplexity",
+            "iou",
+            "ap",
+            "map",
+            "precision-recall",
+            "latency",
+            "throughput",
+            "fps",
+            "speed",
+            "memory",
+            "params",
+            "size",
+            "parameter",
+            "parameters",
+            "recognition",
+            "beneficial",
         ]
 
         # Keep track of keywords that have already been counted
@@ -152,9 +186,9 @@ def _check_model_card_performance(model_url: str) -> float:
 
 
 def _keyword_score(text: str, keywords: list[str]) -> float:
-    '''
+    """
     Function to count keywords in a string and compute score.
-    '''
+    """
 
     if not text:
         return 0.0

@@ -1,6 +1,6 @@
-'''
+"""
 Test performance_claims.py
-'''
+"""
 
 import os
 import pytest
@@ -30,9 +30,9 @@ def load_env():
 
 
 def test_model_url(load_env):
-    '''
+    """
     Test performance claims on a Hugging Face URL
-    '''
+    """
 
     url_model = "https://huggingface.co/bert-base-uncased"
     url_type_model = "model"
@@ -47,9 +47,9 @@ def test_model_url(load_env):
 
 
 def test_code_url(load_env):
-    '''
+    """
     Test performance claims on a code URL
-    '''
+    """
 
     url_code = "https://github.com/pallets/flask"
     url_type_code = "code"

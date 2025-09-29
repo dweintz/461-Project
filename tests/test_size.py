@@ -45,8 +45,10 @@ def test_get_size_score_dataset(mock_get_repo_id):
 @patch("src.scorer.metrics.size.get_repo_id", return_value="mock/repo")
 def test_get_size_score_code(mock_get_repo_id):
     fake_response = {"size": 1024}  # GitHub "size" is KB
-    with patch("src.scorer.metrics.size.requests.get",
-               return_value=MagicMock(json=lambda: fake_response)):
+    with patch(
+        "src.scorer.metrics.size.requests.get",
+        return_value=MagicMock(json=lambda: fake_response),
+    ):
         scores, latency = size.get_size_score("fake_url", "code")
 
     assert isinstance(scores, dict)

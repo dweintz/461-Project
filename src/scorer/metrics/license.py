@@ -1,7 +1,7 @@
-'''
+"""
 Implementing license metric scoring by seeing if
 the license is compatible with LGPLv2.1
-'''
+"""
 
 import os
 import requests
@@ -13,6 +13,7 @@ from typing import Tuple, Optional
 
 # suppress logging from Hugging Face
 import logging
+
 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 load_dotenv()
@@ -20,13 +21,7 @@ load_dotenv()
 HF_API = HfApi()
 # login(token=HF_TOKEN)
 
-compatible_licenses = [
-    "apache-2.0",
-    "mit",
-    "bsd-2-clause",
-    "bsd-3-clause",
-    "lgpl-2.1"
-]
+compatible_licenses = ["apache-2.0", "mit", "bsd-2-clause", "bsd-3-clause", "lgpl-2.1"]
 
 
 def _maybe_login() -> None:
@@ -35,8 +30,8 @@ def _maybe_login() -> None:
     Never prompt, never run at import time.
     """
     token = (
-        os.getenv("HF_TOKEN")           # preferred
-        or os.getenv("HF_Token")        # be forgiving if someone used this
+        os.getenv("HF_TOKEN")  # preferred
+        or os.getenv("HF_Token")  # be forgiving if someone used this
         or os.getenv("HUGGINGFACE_TOKEN")  # extra alias, optional
     )
     if not token:
@@ -91,8 +86,7 @@ def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
     license = None
     if url_type == "model":
         info = HF_API.model_info(repo_id=repo_id)
-        license = (getattr(info, "license", None) or
-                   (info.cardData or {}).get("license"))
+        license = getattr(info, "license", None) or (info.cardData or {}).get("license")
 
     elif url_type == "dataset":
         info = HF_API.dataset_info(repo_id=repo_id)

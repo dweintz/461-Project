@@ -36,11 +36,11 @@ def test_get_license_score_dataset(mock_get_repo_id):
 
 @patch("src.scorer.metrics.license.get_repo_id", return_value="mock/repo")
 def test_get_license_score_code(mock_get_repo_id):
-    fake_license_response = {
-        "license": {"name": "MIT"}
-    }
-    with patch("src.scorer.metrics.license.requests.get",
-               return_value=MagicMock(json=lambda: fake_license_response)):
+    fake_license_response = {"license": {"name": "MIT"}}
+    with patch(
+        "src.scorer.metrics.license.requests.get",
+        return_value=MagicMock(json=lambda: fake_license_response),
+    ):
         score, latency = license.get_license_score("fake_url", "code")
     assert score == 1
     assert isinstance(latency, int)

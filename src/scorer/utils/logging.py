@@ -1,11 +1,11 @@
 # logging config
-'''
+"""
 Centralized logging for files with numeric verbosity levels:
 0 = silent, 1 = info, 2 = debug
 Respects:
   - $LOG_FILE  (path to log file; default: logs/scorer.log)
   - $LOG_LEVEL (0|1|2; default: 0)
-'''
+"""
 
 from __future__ import annotations
 import contextvars
@@ -41,41 +41,44 @@ def set_metric(metric_name: Optional[str]) -> None:
 
 
 def _extra(**kw) -> Dict[str, Any]:
-    ex = dict(run_id=_run_id_var.get(),
-              url=_url_var.get(),
-              metric=_metric_var.get())
+    ex = dict(run_id=_run_id_var.get(), url=_url_var.get(), metric=_metric_var.get())
     ex.update({k: v for k, v in kw.items() if v is not None})
     return ex
 
 
 class JSONLineFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
-        ts = datetime.fromtimestamp(record.created, tz=timezone.utc)\
-                     .isoformat(timespec="milliseconds")\
-                     .replace("+00:00", "Z")
+        ts = (
+            datetime.fromtimestamp(record.created, tz=timezone.utc)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
+        )
         payload = {
             "ts": ts,
             "level": record.levelname,
             "logger": record.name,
-            "msg": record.getMessage()
+            "msg": record.getMessage(),
         }
         # pass-through extras if present
-        for k in ("run_id",
-                  "url",
-                  "metric",
-                  "latency_ms",
-                  "function",
-                  "phase",
-                  "count",
-                  "file",
-                  "type"):
+        for k in (
+            "run_id",
+            "url",
+            "metric",
+            "latency_ms",
+            "function",
+            "phase",
+            "count",
+            "file",
+            "type",
+        ):
             if hasattr(record, k):
                 payload[k] = getattr(record, k)
             elif record.__dict__.get("extra", {}).get(k) is not None:
                 payload[k] = record.__dict__["extra"][k]
         if record.exc_info:
-            payload["exc"] = "".join(
-                traceback.format_exception(*record.exc_info))[-4000:]
+            payload["exc"] = "".join(traceback.format_exception(*record.exc_info))[
+                -4000:
+            ]
         return json.dumps(payload, ensure_ascii=False)
 
 
@@ -83,8 +86,8 @@ class TextFormatter(logging.Formatter):
     def __init__(self):
         super().__init__(
             fmt="%(asctime)s | %(levelname)s | %(name)s | run=%(run_id)s "
-                "url=%(url)s metric=%(metric)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            "url=%(url)s metric=%(metric)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
 
 
@@ -153,9 +156,9 @@ def _verbosity_to_logging_level(v: int) -> int:
 _INITIALIZED = False
 
 
-def setup_logging(*,
-                  level: Optional[Union[int, str]] = None,
-                  json_lines: bool = True) -> Path:
+def setup_logging(
+    *, level: Optional[Union[int, str]] = None, json_lines: bool = True
+) -> Path:
     """
     Initialize project logging to a rotating file.
     - File path from $LOG_FILE, else ./logs/scorer.log
@@ -189,10 +192,9 @@ def setup_logging(*,
     logger.propagate = False
 
     try:
-        handler = RotatingFileHandler(log_path,
-                                      maxBytes=5_000_000,
-                                      backupCount=2,
-                                      encoding="utf-8")
+        handler = RotatingFileHandler(
+            log_path, maxBytes=5_000_000, backupCount=2, encoding="utf-8"
+        )
     except OSError as e:
         print(f"Error: cannot open log file {log_path}: {e}", file=sys.stderr)
         sys.exit(1)
@@ -219,8 +221,9 @@ def log_call(phase: str = "metric") -> Callable:
         def wrapper(*args, **kwargs):
             log = get_logger(fn.__module__)
             start = time.perf_counter_ns()
-            log.info(f"start {fn.__name__}",
-                     extra=_extra(phase=phase, function=fn.__name__))
+            log.info(
+                f"start {fn.__name__}", extra=_extra(phase=phase, function=fn.__name__)
+            )
             try:
                 result = fn(*args, **kwargs)
                 return result
@@ -228,14 +231,16 @@ def log_call(phase: str = "metric") -> Callable:
                 dur_ms = (time.perf_counter_ns() - start) // 1_000_000
                 log.exception(
                     f"error {fn.__name__}",
-                    extra=_extra(phase=phase, function=fn.__name__, latency_ms=dur_ms)
+                    extra=_extra(phase=phase, function=fn.__name__, latency_ms=dur_ms),
                 )
                 raise
             finally:
                 dur_ms = (time.perf_counter_ns() - start) // 1_000_000
                 log.info(
                     f"end {fn.__name__}",
-                    extra=_extra(phase=phase, function=fn.__name__, latency_ms=dur_ms)
+                    extra=_extra(phase=phase, function=fn.__name__, latency_ms=dur_ms),
                 )
+
         return wrapper
+
     return deco

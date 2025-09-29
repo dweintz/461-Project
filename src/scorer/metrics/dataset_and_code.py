@@ -1,8 +1,8 @@
-'''
+"""
 Dataset and code metrics.
 - Look for dataset mentions in README (documentation).
 - Look for example code/scripts (training, evaluation, requirements).
-'''
+"""
 
 import os
 import time
@@ -23,8 +23,8 @@ def _maybe_login() -> None:
     Never prompt, never run at import time.
     """
     token = (
-        os.getenv("HF_TOKEN")           # preferred
-        or os.getenv("HF_Token")        # be forgiving if someone used this
+        os.getenv("HF_TOKEN")  # preferred
+        or os.getenv("HF_Token")  # be forgiving if someone used this
         or os.getenv("HUGGINGFACE_TOKEN")  # extra alias, optional
     )
     if not token:

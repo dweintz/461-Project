@@ -1,6 +1,6 @@
-'''
+"""
 Evaluates the quality of the code.
-'''
+"""
 
 import os
 import shutil
@@ -15,14 +15,14 @@ import re
 
 
 def run_radon(path: str) -> float:
-    '''
+    """
     Function to run radon, a Python tool that analyzes source code complexity and
     maintainability.
-    '''
+    """
     cmds = [
-            [sys.executable, "-m", "radon", "mi", "-s", path],  # preferred
-            ["radon", "mi", "-s", path],                        # fallback
-        ]
+        [sys.executable, "-m", "radon", "mi", "-s", path],  # preferred
+        ["radon", "mi", "-s", path],  # fallback
+    ]
 
     result = None
     for cmd in cmds:
@@ -43,14 +43,14 @@ def run_radon(path: str) -> float:
         if " - " in line:
             grade = line.split(" -")[-1].strip()[:1]
             vals.append(score_map.get(grade, 0.0))
-    return sum(vals)/len(vals) if vals else 0.0
+    return sum(vals) / len(vals) if vals else 0.0
 
 
 def run_lizard(path: str) -> Optional[Dict]:
-    '''
+    """
     Function to run lizard, a multi-language code analysis tool that analyzes function
     complexity.
-    '''
+    """
 
     for cmd in ([sys.executable, "-m", "lizard", path], ["lizard", path]):
         try:
@@ -107,9 +107,9 @@ def run_lizard(path: str) -> Optional[Dict]:
 
 
 def score_from_lizard_totals(totals: dict) -> float:
-    '''
+    """
     Function to calculate final score from dictionary returned by run_lizard().
-    '''
+    """
 
     if not totals:
         return 0.0
@@ -153,17 +153,15 @@ def score_from_lizard_totals(totals: dict) -> float:
     # define weighted score
     weights = [0.5, 0.3, 0.2]
     components = [ccn_score, nloc_score, warning_score]
-    final_score = sum(
-        w * c for w, c in zip(weights, components)
-    ) / sum(weights)
+    final_score = sum(w * c for w, c in zip(weights, components)) / sum(weights)
 
     return final_score
 
 
 def docstring_ratio(path: str) -> float:
-    '''
+    """
     Function to count how many Python functions or classes have docstrings.
-    '''
+    """
     total = 0
     documented = 0
     score = 0
@@ -171,15 +169,13 @@ def docstring_ratio(path: str) -> float:
     for root, _, files in os.walk(path):
         for file in files:
             if file.endswith(".py"):
-                with open(os.path.join(root, file),
-                          "r",
-                          encoding="utf-8",
-                          errors="ignore") as fh:
+                with open(
+                    os.path.join(root, file), "r", encoding="utf-8", errors="ignore"
+                ) as fh:
                     try:
                         tree = ast.parse(fh.read())
                         for node in ast.walk(tree):
-                            if isinstance(node,
-                                          (ast.FunctionDef, ast.ClassDef)):
+                            if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
                                 total += 1
                                 if ast.get_docstring(node):
                                     documented += 1
@@ -191,9 +187,9 @@ def docstring_ratio(path: str) -> float:
 
 
 def _check_code_repo_quality(code_url: str) -> float:
-    '''
+    """
     Function to analyze the quality of the code.
-    '''
+    """
 
     temp_dir = tempfile.mkdtemp()
     try:
@@ -244,8 +240,9 @@ def _check_code_repo_quality(code_url: str) -> float:
         portability = 0.0
         if os.path.exists(os.path.join(temp_dir, "Dockerfile")):
             portability += 0.5
-        if os.path.exists(os.path.join(temp_dir, "requirements.txt")) or \
-           os.path.exists(os.path.join(temp_dir, "environment.yml")):
+        if os.path.exists(os.path.join(temp_dir, "requirements.txt")) or os.path.exists(
+            os.path.join(temp_dir, "environment.yml")
+        ):
             portability += 0.5
 
         # reusability (check for README and docstrings)
@@ -259,11 +256,11 @@ def _check_code_repo_quality(code_url: str) -> float:
 
         # compute weighted score
         final_score = (
-            complexity * 0.70 +
-            reliability * 0.05 +
-            testability * 0.05 +
-            portability * 0.1 +
-            reusability * 0.1
+            complexity * 0.70
+            + reliability * 0.05
+            + testability * 0.05
+            + portability * 0.1
+            + reusability * 0.1
         )
 
         return min(1.0, final_score)
@@ -274,14 +271,14 @@ def _check_code_repo_quality(code_url: str) -> float:
 
 
 def get_code_quality(url: str, url_type: str) -> Tuple[float, int]:
-    '''
+    """
     Function to get code quality if URL is a GitHub link.
-    '''
+    """
 
     start_time = time.time()
     score = 0.0
 
-    if url_type == 'code':
+    if url_type == "code":
         # clone GitHub repo and check readme for performance claims
         score = _check_code_repo_quality(url)
     latency = int((time.time() - start_time) * 1000)

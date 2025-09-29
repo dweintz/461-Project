@@ -8,7 +8,7 @@ from src.scorer.metrics.busfactor import (
     _doa,
     _hf_kind_and_repo_id,
     _normalize_github_clone,
-    _resolve_code_repo_for_target
+    _resolve_code_repo_for_target,
 )
 
 
@@ -57,7 +57,7 @@ def test_resolve_code_repo_for_target_hf_model_with_gh_link(mock_hf):
     mock_info = MagicMock()
     mock_info.cardData = {
         "repository": "https://github.com/owner/code-repo",
-        "summary": "Some summary"
+        "summary": "Some summary",
     }
     mock_hf.model_info.return_value = mock_info
 
@@ -65,8 +65,9 @@ def test_resolve_code_repo_for_target_hf_model_with_gh_link(mock_hf):
     result = _resolve_code_repo_for_target(url, "model")
 
     assert result == "https://github.com/owner/code-repo.git"
-    mock_hf.model_info.assert_called_once_with("google/bert-base-uncased",
-                                               files_metadata=False)
+    mock_hf.model_info.assert_called_once_with(
+        "google/bert-base-uncased", files_metadata=False
+    )
 
 
 def make_mock_repo(file_structure=None, authors=None):
@@ -164,12 +165,9 @@ def test_authors_by_file_and_doa_logic():
     creators = {"file1.py": "a1@example.com"}
 
     # _doa computation
-    val_a1 = _doa("a1@example.com",
-                  "file1.py",
-                  dl,
-                  total_by_file,
-                  contributors,
-                  creators)
+    val_a1 = _doa(
+        "a1@example.com", "file1.py", dl, total_by_file, contributors, creators
+    )
     val_a2 = _doa("a2", "file1.py", dl, total_by_file, contributors, creators)
     assert val_a1 > val_a2
 

@@ -1,6 +1,6 @@
-'''
+"""
 Tests for CLI
-'''
+"""
 
 import subprocess
 import sys

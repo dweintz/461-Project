@@ -11,12 +11,12 @@ from src.scorer.metrics.rampup import (
     _heuristic_rampup,
     _to_clone_url,
     _extract_json_first,
-    SKIP_DIRS
+    SKIP_DIRS,
 )
 
 
 def test_extract_json_first_valid():
-    text = "some junk {\"score\": 0.8, \"rationale\": \"clear\"} trailing"
+    text = 'some junk {"score": 0.8, "rationale": "clear"} trailing'
     result = _extract_json_first(text)
     assert isinstance(result, dict)
     assert result["score"] == 0.8
@@ -133,7 +133,7 @@ def test_top_level_summary_max_files(tmp_path):
         (tmp_path / f"file{i}.txt").write_text("content")
 
     result = _top_level_summary(str(tmp_path), max_files=50)
-    lines = result.split('\n')
+    lines = result.split("\n")
     assert len(lines) <= 50
 
 
@@ -190,8 +190,9 @@ def create_dummy_repo_files(tmpdir, files=None, readme_content="Example README")
     for f in files:
         path = Path(tmpdir) / f
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(readme_content if f.lower().startswith("readme")
-                        else "print('hello')")
+        path.write_text(
+            readme_content if f.lower().startswith("readme") else "print('hello')"
+        )
     return tmpdir
 
 
@@ -226,10 +227,9 @@ def test_get_ramp_up_llm_fail(mock_ask_llm, mock_clone_from):
 @patch("src.scorer.metrics.rampup._ask_llm")
 @patch("src.scorer.metrics.rampup._read_first_readme")
 @patch("src.scorer.metrics.rampup._top_level_summary")
-def test_get_ramp_up_llm_exception(mock_summary,
-                                   mock_readme,
-                                   mock_ask_llm,
-                                   mock_clone_from):
+def test_get_ramp_up_llm_exception(
+    mock_summary, mock_readme, mock_ask_llm, mock_clone_from
+):
     """Test that LLM exceptions are handled gracefully."""
     readme_content = "# Test README\nNo special patterns here"
     tree_content = "file1.txt\nfile2.txt"
@@ -254,10 +254,9 @@ def test_get_ramp_up_llm_exception(mock_summary,
 @patch("src.scorer.metrics.rampup._ask_llm")
 @patch("src.scorer.metrics.rampup._read_first_readme")
 @patch("src.scorer.metrics.rampup._top_level_summary")
-def test_get_ramp_up_empty_content(mock_summary,
-                                   mock_readme,
-                                   mock_ask_llm,
-                                   mock_clone_from):
+def test_get_ramp_up_empty_content(
+    mock_summary, mock_readme, mock_ask_llm, mock_clone_from
+):
     """Test heuristic fallback with empty README and file list."""
     mock_readme.return_value = ""
     mock_summary.return_value = ""
@@ -278,10 +277,9 @@ def test_get_ramp_up_empty_content(mock_summary,
 @patch("src.scorer.metrics.rampup._ask_llm")
 @patch("src.scorer.metrics.rampup._read_first_readme")
 @patch("src.scorer.metrics.rampup._top_level_summary")
-def test_get_ramp_up_llm_success(mock_summary,
-                                 mock_readme,
-                                 mock_ask_llm,
-                                 mock_clone_from):
+def test_get_ramp_up_llm_success(
+    mock_summary, mock_readme, mock_ask_llm, mock_clone_from
+):
     """Test successful LLM evaluation."""
     mock_readme.return_value = "# Test README\npip install test"
     mock_summary.return_value = "setup.py\nREADME.md"
@@ -304,10 +302,9 @@ def test_get_ramp_up_llm_success(mock_summary,
 @patch("src.scorer.metrics.rampup._ask_llm")
 @patch("src.scorer.metrics.rampup._read_first_readme")
 @patch("src.scorer.metrics.rampup._top_level_summary")
-def test_get_ramp_up_score_clamping(mock_summary,
-                                    mock_readme,
-                                    mock_ask_llm,
-                                    mock_clone_from):
+def test_get_ramp_up_score_clamping(
+    mock_summary, mock_readme, mock_ask_llm, mock_clone_from
+):
     """Test that scores are clamped to [0.0, 1.0] range."""
     mock_readme.return_value = "README"
     mock_summary.return_value = "files"

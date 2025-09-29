@@ -12,37 +12,41 @@ from dotenv import load_dotenv
 from .base import get_repo_id
 
 import logging as _logging
+
 _logging.getLogger("huggingface_hub").setLevel(_logging.ERROR)
 
 load_dotenv()
 HF_API = HfApi()
 
 HARDWARE_LIMITS = {
-    "raspberry_pi": 4_000_000_000,    # 4 GB
-    "jetson_nano":  4_000_000_000,    # 4 GB
-    "desktop_pc":  32_000_000_000,    # 32 GB
-    "aws_server": 512_000_000_000,    # 512 GB
+    "raspberry_pi": 4_000_000_000,  # 4 GB
+    "jetson_nano": 4_000_000_000,  # 4 GB
+    "desktop_pc": 32_000_000_000,  # 32 GB
+    "aws_server": 512_000_000_000,  # 512 GB
 }
 
 # Tunable: fraction of RAM we assume can hold weights
 USABLE_FRACTION = {
     "raspberry_pi": 0.26,  # ~1.04 GB effective
-    "jetson_nano":  0.35,  # ~1.40 GB effective
-    "desktop_pc":   0.85,  # ~27.2 GB effective
-    "aws_server":   0.98,  # ~501 GB effective
+    "jetson_nano": 0.35,  # ~1.40 GB effective
+    "desktop_pc": 0.85,  # ~27.2 GB effective
+    "aws_server": 0.98,  # ~501 GB effective
 }
 
 _WEIGHT_EXTS = {".safetensors", ".bin", ".pt", ".pth", ".onnx", ".tflite", ".pb"}
 
 # Shard pattern: name-00001-of-00005.safetensors
-_SHARD_RE = re.compile(r"^(?P<prefix>.+?)-\d{5}-of-\d{5}\.(?P<ext>[^.]+)$",
-                       re.IGNORECASE)
+_SHARD_RE = re.compile(
+    r"^(?P<prefix>.+?)-\d{5}-of-\d{5}\.(?P<ext>[^.]+)$", re.IGNORECASE
+)
 
 
 def _looks_like_weight_file(name: str) -> bool:
     lower = name.lower()
-    if any(token in lower for token in
-           ("optimizer", "optim", "training", "trainer", "adam")):
+    if any(
+        token in lower
+        for token in ("optimizer", "optim", "training", "trainer", "adam")
+    ):
         return False
     return any(lower.endswith(ext) for ext in _WEIGHT_EXTS)
 
@@ -77,12 +81,14 @@ def _framework_weight(filename: str) -> str:
 
 
 # Preference order if two families have the *same* total size
-_FRAMEWORK_PREF = {"safetensors": 0,
-                   "pytorch": 1,
-                   "onnx": 2,
-                   "tflite": 3,
-                   "tensorflow": 4,
-                   "other": 5}
+_FRAMEWORK_PREF = {
+    "safetensors": 0,
+    "pytorch": 1,
+    "onnx": 2,
+    "tflite": 3,
+    "tensorflow": 4,
+    "other": 5,
+}
 
 
 def _pick_min_viable_family(files: List[tuple]) -> int:
@@ -120,15 +126,18 @@ def _pick_min_viable_family(files: List[tuple]) -> int:
 
 
 def _maybe_login() -> None:
-    token = os.getenv("HF_TOKEN") or os.getenv("HF_Token") or \
-        os.getenv("HUGGINGFACE_TOKEN")
+    token = (
+        os.getenv("HF_TOKEN") or os.getenv("HF_Token") or os.getenv("HUGGINGFACE_TOKEN")
+    )
     if not token:
         return
     try:
-        login(token=token,
-              add_to_git_credential=False,
-              write_permission=False,
-              new_session=False)
+        login(
+            token=token,
+            add_to_git_credential=False,
+            write_permission=False,
+            new_session=False,
+        )
     except Exception:
         pass
 
@@ -195,4 +204,6 @@ def get_size_score(url: str, url_type: str) -> Tuple[Optional[Dict[str, float]],
     scores = {hw: _score_on_hardware(total_bytes, hw) for hw in HARDWARE_LIMITS}
     latency = int((time.time() - t0) * 1000)
     return scores, latency
+
+
 # --- end ---------------------------------------------------------------------

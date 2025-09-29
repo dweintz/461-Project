@@ -1,6 +1,6 @@
-'''
+"""
 Test code_quality.py
-'''
+"""
 
 import os
 import pytest
@@ -13,13 +13,14 @@ from src.scorer.metrics.code_quality import (
     run_radon,
     run_lizard,
     score_from_lizard_totals,
-    docstring_ratio
+    docstring_ratio,
 )
 
 
 @pytest.fixture(scope="session", autouse=True)
 def load_env():
     from dotenv import load_dotenv
+
     load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
     return os.getenv("HF_TOKEN", "")
 
@@ -40,12 +41,9 @@ def test_code_url(load_env):
 @patch("src.scorer.metrics.code_quality.run_radon")
 @patch("src.scorer.metrics.code_quality.run_lizard")
 @patch("src.scorer.metrics.code_quality.docstring_ratio")
-def test_check_code_repo_quality_all_branches(mock_docstring,
-                                              mock_lizard,
-                                              mock_radon,
-                                              mock_exists,
-                                              mock_walk,
-                                              mock_clone):
+def test_check_code_repo_quality_all_branches(
+    mock_docstring, mock_lizard, mock_radon, mock_exists, mock_walk, mock_clone
+):
     # Mock repo clone does nothing
     mock_clone.return_value = None
 
@@ -56,18 +54,17 @@ def test_check_code_repo_quality_all_branches(mock_docstring,
 
     # Simulate that .github exists and Dockerfile exists
     def exists_side(path):
-        return any(x in path for x in
-                   [".github", "Dockerfile", "requirements.txt", "README.md"])
+        return any(
+            x in path
+            for x in [".github", "Dockerfile", "requirements.txt", "README.md"]
+        )
+
     mock_exists.side_effect = exists_side
 
     # Radon score branch
     mock_radon.return_value = 0.8
     # Lizard branch
-    mock_lizard.return_value = {
-        "Avg CCN": 6,
-        "Avg NLOC": 25,
-        "Warning Count": 1
-    }
+    mock_lizard.return_value = {"Avg CCN": 6, "Avg NLOC": 25, "Warning Count": 1}
     # Docstring ratio
     mock_docstring.return_value = 0.6
 
@@ -82,7 +79,7 @@ def test_score_from_lizard_totals_various():
         {"Avg CCN": 3, "Avg NLOC": 20, "Warning Count": 0},  # best case
         {"Avg CCN": 8, "Avg NLOC": 35, "Warning Count": 2},  # mid case
         {"Avg CCN": 15, "Avg NLOC": 80, "Warning Count": 5},  # lower score
-        {"Avg CCN": 25, "Avg NLOC": 120, "Warning Count": 10}  # worst
+        {"Avg CCN": 25, "Avg NLOC": 120, "Warning Count": 10},  # worst
     ]
     for totals in totals_list:
         score = score_from_lizard_totals(totals)
