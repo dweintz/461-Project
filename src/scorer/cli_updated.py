@@ -375,7 +375,7 @@ def main() -> None:
             }
 
             print(json.dumps(output, separators=(",", ":")))
-            sys.stdout.flush()
+            # sys.stdout.flush()
         except Exception:
             log.exception("unexpected error while scoring line", extra={"phase": "run"})
             print(
