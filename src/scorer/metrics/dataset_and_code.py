@@ -1,5 +1,5 @@
 '''
-Dataset and code metrics. 
+Dataset and code metrics.
 - Look for dataset mentions in README (documentation).
 - Look for example code/scripts (training, evaluation, requirements).
 '''

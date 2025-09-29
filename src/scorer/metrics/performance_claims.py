@@ -33,6 +33,7 @@ def get_performance_claims(url: str, url_type: str) -> Tuple[float, int]:
 
     return score, latency
 
+
 def _check_code_repo_performance(code_url: str) -> float:
     '''
     Function to check the code repo for performance claims.

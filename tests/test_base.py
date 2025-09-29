@@ -19,4 +19,3 @@ def test_get_dataset_repo_id_single():
 def test_get_code_repo_id():
     url = "https://github.com/SkyworkAI/Matrix-Game"
     assert get_repo_id(url, "code") == "SkyworkAI/Matrix-Game"
-    

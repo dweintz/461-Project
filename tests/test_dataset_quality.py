@@ -34,7 +34,7 @@ def test_get_dataset_quality_score_without_likes(mock_get_repo_id):
     with patch.object(dataset_quality.HF_API, "dataset_info", return_value=fake_info):
         score = dataset_quality.get_dataset_quality_score("fake_url", "dataset")
 
-    # When likes = 0, function returns downloads_score only 
+    # When likes = 0, function returns downloads_score only
     assert isinstance(score, float)
     assert 0 <= score <= 1
 

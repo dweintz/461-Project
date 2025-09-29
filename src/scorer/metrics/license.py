@@ -1,5 +1,5 @@
 '''
-Implementing license metric scoring by seeing if 
+Implementing license metric scoring by seeing if
 the license is compatible with LGPLv2.1
 '''
 
@@ -91,7 +91,8 @@ def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
     license = None
     if url_type == "model":
         info = HF_API.model_info(repo_id=repo_id)
-        license = (getattr(info, "license", None) or (info.cardData or {}).get("license"))
+        license = (getattr(info, "license", None) or
+                   (info.cardData or {}).get("license"))
 
     elif url_type == "dataset":
         info = HF_API.dataset_info(repo_id=repo_id)
