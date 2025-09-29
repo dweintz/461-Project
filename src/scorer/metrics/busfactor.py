@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Dict, Set, Tuple, List
 from collections import defaultdict
 from urllib.parse import urlparse
-
 from git import Repo, GitCommandError
 
 # Optional: if huggingface_hub is installed, we can resolve code repo links
@@ -46,6 +45,7 @@ _GH_LINK_RE = re.compile(r"https?://github\.com/\S+/\S+", re.IGNORECASE)
 
 # -------- URL helpers --------
 
+
 def _hf_kind_and_repo_id(url: str) -> tuple[str, str] | None:
     """Return ('model'|'dataset', 'namespace/name') for HF URLs; else None."""
     p = urlparse(url)
@@ -62,6 +62,7 @@ def _hf_kind_and_repo_id(url: str) -> tuple[str, str] | None:
         return "model", f"{parts[0]}/{parts[1]}"
     return None
 
+
 def _normalize_github_clone(url: str) -> str:
     """Convert any GitHub URL to a proper .git clone URL."""
     p = urlparse(url)
@@ -70,10 +71,12 @@ def _normalize_github_clone(url: str) -> str:
         raise ValueError("GitHub URL must be /owner/repo")
     return f"https://github.com/{parts[0]}/{parts[1]}.git"
 
+
 def _resolve_code_repo_for_target(url: str, url_type: str) -> str:
     """
     Prefer cloning a GitHub code repository when available.
-    If HF URL has no GH link in the card, fall back to cloning the HF git repo (root, no /tree/main).
+    If HF URL has no GH link in the card, fall back to cloning the HF git repo
+    (root, no /tree/main).
     """
     p = urlparse(url)
     host = p.netloc.lower()
@@ -86,8 +89,11 @@ def _resolve_code_repo_for_target(url: str, url_type: str) -> str:
         # Try to read the model/dataset card for an explicit GitHub repo
         if HF is not None:
             try:
-                info = HF.dataset_info(repo_id, files_metadata=False) if kind == "dataset" \
-                       else HF.model_info(repo_id, files_metadata=False)
+                info = (
+                    HF.dataset_info(repo_id, files_metadata=False)
+                    if kind == "dataset"
+                    else HF.model_info(repo_id, files_metadata=False)
+                )
                 card = getattr(info, "cardData", None) or {}
                 # Prefer structured fields
                 for key in ("repository", "source_code", "code", "paper_repository"):
@@ -114,6 +120,7 @@ def _resolve_code_repo_for_target(url: str, url_type: str) -> str:
 
 # -------- analysis helpers (unchanged) --------
 
+
 def _is_code_like(path: str) -> bool:
     p = Path(path)
     ext = p.suffix.lower()
@@ -126,13 +133,16 @@ def _is_code_like(path: str) -> bool:
     except Exception:
         return False
 
+
 def _first_author_email(repo: Repo, file_path: str) -> str | None:
     try:
-        out = repo.git.log("--diff-filter=A", "--reverse", "--format=%ae", "--", file_path)
+        out = repo.git.log("--diff-filter=A", "--reverse", "--format=%ae", "--",
+                           file_path)
         line = out.splitlines()[0].strip() if out else ""
         return line or None
     except GitCommandError:
         return None
+
 
 def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
     Dict[str, Dict[str, int]], Dict[str, int], Dict[str, Set[str]], Dict[str, str]
@@ -145,7 +155,10 @@ def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
     contributors: Dict[str, Set[str]] = defaultdict(set)
     creators: Dict[str, str] = {}
 
-    commits = list(repo.iter_commits("HEAD", since=since_arg)) or list(repo.iter_commits("HEAD"))
+    commits = (
+        list(repo.iter_commits("HEAD", since=since_arg))
+        or list(repo.iter_commits("HEAD"))
+    ) 
     for c in commits:
         author = (c.author.email or c.author.name or "unknown").strip().lower()
         try:
@@ -163,6 +176,7 @@ def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
         creators[f] = _first_author_email(repo, f) or ""
     return dl, total_by_file, contributors, creators
 
+
 def _doa(author: str, file_path: str,
          dl: Dict[str, Dict[str, int]],
          total_by_file: Dict[str, int],
@@ -170,8 +184,12 @@ def _doa(author: str, file_path: str,
          creators: Dict[str, str]) -> float:
     DL = dl[file_path].get(author, 0)
     AC = max(0, total_by_file[file_path] - DL)
-    FA = 1 if creators.get(file_path, "").lower() == author.lower() and creators[file_path] != "" else 0
+    FA = (
+        1 if creators.get(file_path, "").lower() == author.lower()
+        and creators[file_path] != "" else 0
+    )
     return 3.293 + 1.098 * FA + 0.164 * DL - 0.321 * math.log(1 + AC)
+
 
 def _authors_by_file(dl, total_by_file, contributors, creators) -> Dict[str, Set[str]]:
     authors_of_file: Dict[str, Set[str]] = {}
@@ -192,13 +210,16 @@ def _authors_by_file(dl, total_by_file, contributors, creators) -> Dict[str, Set
         authors_of_file[f] = keep
     return authors_of_file
 
+
 def _compute_bus_factor(authors_of_file: Dict[str, Set[str]]) -> Tuple[int, List[str]]:
     files = list(authors_of_file.keys())
     if not files:
         return 0, []
     abandoned: Set[str] = {f for f in files if not authors_of_file[f]}
     removed: List[str] = []
-    active_authors: Set[str] = set().union(*authors_of_file.values()) if authors_of_file else set()
+    active_authors: Set[str] = (
+        set().union(*authors_of_file.values()) if authors_of_file else set()
+    )
 
     def recompute_abandoned(current_removed: Set[str]) -> Set[str]:
         new_abandoned = set(abandoned)
@@ -215,23 +236,32 @@ def _compute_bus_factor(authors_of_file: Dict[str, Set[str]]) -> Tuple[int, List
             return len(removed), removed
         if not active_authors:
             return len(removed), removed
-        coverage = {a: sum(1 for f in files if a in authors_of_file[f]) for a in active_authors}
+        coverage = {
+            a: sum(1 for f in files if a in authors_of_file[f])
+            for a in active_authors
+        }
         top_author = max(coverage.items(), key=lambda kv: kv[1])[0]
         removed.append(top_author)
         current_removed.add(top_author)
         active_authors.remove(top_author)
         abandoned = recompute_abandoned(current_removed)
 
+
 def _normalize_score(bus_factor: int, authors_of_file: Dict[str, Set[str]]) -> float:
-    active_authors: Set[str] = set().union(*authors_of_file.values()) if authors_of_file else set()
+    active_authors: Set[str] = set().union(*authors_of_file.values()) \
+        if authors_of_file else set()
     denom = max(1, len(active_authors))
     return min(1.0, bus_factor / denom)
 
 # -------- public API --------
 
-def get_bus_factor(url: str, url_type: str, since_days: int = SINCE_DAYS_DEFAULT) -> Tuple[float, int]:
+
+def get_bus_factor(url: str,
+                   url_type: str,
+                   since_days: int = SINCE_DAYS_DEFAULT) -> Tuple[float, int]:
     """
-    Resolve to a *code* repository (GitHub if available), compute bus factor, and return (score, latency_ms).
+    Resolve to a *code* repository (GitHub if available), compute bus factor, and
+    return (score, latency_ms).
     """
     start = time.time()
     temp_dir = tempfile.mkdtemp()
@@ -245,7 +275,8 @@ def get_bus_factor(url: str, url_type: str, since_days: int = SINCE_DAYS_DEFAULT
             env=env
         )
 
-        dl, total_by_file, contributors, creators = _collect_doa_inputs(repo, since_days)
+        dl, total_by_file, contributors, creators = _collect_doa_inputs(repo,
+                                                                        since_days)
         if not total_by_file:
             return 0.0, int((time.time() - start) * 1000)
 
