@@ -76,14 +76,15 @@ def read_urls(file_path: Path) -> List[str]:
     # check if file path exists
     if not file_path.exists():
         raise FileNotFoundError(f"URL file {file_path} does not exist.")
-    
-    urls = []
+    urls: List[List[str]] = []
     with file_path.open("r", encoding="utf-8") as f:
-        for line in f:
-            # Separate commas and strip whitespace
-            parts = [url.strip() for url in line.split(",") if url.strip()]
-            
-            urls.append(parts)
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue  # skip blank/comment
+            parts = [u.strip() for u in line.split(",") if u.strip()]
+            if parts:               # <-- only keep non-empty lines
+                urls.append(parts)
     return urls
     
 def main() -> None:
