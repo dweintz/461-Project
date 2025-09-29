@@ -13,6 +13,7 @@ import os
 from contextlib import redirect_stdout
 import logging
 import sys
+import math
 import os
 import json
 from utils.logging import setup_logging, set_run_id, get_logger
@@ -184,7 +185,7 @@ def main() -> None:
 
     # Calculate metrics
     for line in classifications:
-        start_time = time.time()
+        start_time = time.perf_counter_ns()
         try:
             # intialize all fields to zero
             # string fields
@@ -329,7 +330,7 @@ def main() -> None:
             )
 
             # Compute net score latency in milliseconds
-            net_score_latency = int((time.time() - start_time) * 1000)
+            net_score_latency = max(1, math.ceil((time.perf_counter_ns() - start_time) / 1_000_000))
 
             # Build NDJSON output
             output = {
