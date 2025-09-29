@@ -1,19 +1,20 @@
-........................................................................ [100%]
-=============================== tests coverage ================================
-_______________ coverage: platform win32, python 3.11.9-final-0 _______________
+........................................................................ [ 87%]
+..........                                                               [100%]
 
+---------- coverage: platform linux, python 3.10.12-final-0 ----------
 Name                                       Stmts   Miss  Cover
 --------------------------------------------------------------
-src\scorer\metrics\__init__.py                 0      0   100%
-src\scorer\metrics\base.py                    19      3    84%
-src\scorer\metrics\busfactor.py              183     40    78%
-src\scorer\metrics\code_quality.py           164     33    80%
-src\scorer\metrics\dataset_and_code.py        60     13    78%
-src\scorer\metrics\dataset_quality.py         46      3    93%
-src\scorer\metrics\license.py                 60      7    88%
-src\scorer\metrics\performance_claims.py      83     10    88%
-src\scorer\metrics\rampup.py                 125     34    73%
-src\scorer\metrics\size.py                    62     13    79%
+src/scorer/metrics/__init__.py                 0      0   100%
+src/scorer/metrics/base.py                    19      3    84%
+src/scorer/metrics/busfactor.py              183     40    78%
+src/scorer/metrics/code_quality.py           164     33    80%
+src/scorer/metrics/dataset_and_code.py        60     11    82%
+src/scorer/metrics/dataset_quality.py         46      1    98%
+src/scorer/metrics/license.py                 60      5    92%
+src/scorer/metrics/performance_claims.py      83     10    88%
+src/scorer/metrics/rampup.py                 220     53    76%
+src/scorer/metrics/size.py                   113      8    93%
 --------------------------------------------------------------
-TOTAL                                        802    156    81%
-72 passed in 9.99s
+TOTAL                                        948    164    83%
+
+82 passed, 2 warnings in 6.41s

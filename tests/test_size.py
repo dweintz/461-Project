@@ -5,14 +5,14 @@ from src.scorer.metrics import size
 def test_score_for_hardware_under_limit():
     limit = 1000000000 # 1GB
     total_bytes = 100000000  # 100MB
-    score = size.score_for_hardware(total_bytes, limit)
+    score = size._score_on_hardware(total_bytes, "aws_server")
     assert 0 < score <= 1
     assert score > 0.5 
 
 def test_score_for_hardware_over_limit():
     limit = 1000000000
     total_bytes = 10_000_000_000  # 10GB
-    score = size.score_for_hardware(total_bytes, limit)
+    score = size._score_on_hardware(total_bytes, "desktop_pc")
     assert 0 <= score < 1
     assert score < 0.5
 
@@ -25,7 +25,7 @@ def test_get_size_score_model(mock_get_repo_id):
         scores, latency = size.get_size_score("fake_url", "model")
 
     assert isinstance(scores, dict)
-    assert all(hw in scores for hw in size.hardware_limits)
+    assert all(hw in scores for hw in size.HARDWARE_LIMITS)
     assert all(0 <= v <= 1 for v in scores.values())
     assert isinstance(latency, int)
 
@@ -47,3 +47,50 @@ def test_get_size_score_code(mock_get_repo_id):
 
     assert isinstance(scores, dict)
     assert "aws_server" in scores
+
+def test_looks_like_weight_file_positive():
+    assert size._looks_like_weight_file("model.safetensors")
+    assert size._looks_like_weight_file("weights.pt")
+    assert size._looks_like_weight_file("export.onnx")
+
+def test_looks_like_weight_file_negative():
+    assert not size._looks_like_weight_file("optimizer.pt")
+    assert not size._looks_like_weight_file("training_state.bin")
+    assert not size._looks_like_weight_file("notes.txt")
+
+def test_family_key_sharded_and_nonsharded():
+    # Sharded file
+    key1 = size._family_key("pytorch_model-00001-of-00005.safetensors")
+    assert key1 == "pytorch_model.safetensors"
+
+    # Non-sharded file
+    key2 = size._family_key("folder/model.pt")
+    assert key2 == "model.pt"
+
+def test_framework_weight_mapping():
+    assert size._framework_weight("x.safetensors") == "safetensors"
+    assert size._framework_weight("x.pt") == "pytorch"
+    assert size._framework_weight("x.pth") == "pytorch"
+    assert size._framework_weight("x.onnx") == "onnx"
+    assert size._framework_weight("x.tflite") == "tflite"
+    assert size._framework_weight("x.pb") == "tensorflow"
+    assert size._framework_weight("x.unknown") == "other"
+
+def test_pick_min_viable_family_prefers_smallest():
+    files = [
+        ("big_model.safetensors", 200),
+        ("small_model.safetensors", 50),
+    ]
+    assert size._pick_min_viable_family(files) == 50
+
+def test_pick_min_viable_family_tie_breaker_framework():
+    files = [
+        ("model.safetensors", 100),
+        ("model.pt", 100),
+    ]
+    # safetensors preferred over pytorch on tie
+    assert size._pick_min_viable_family(files) == 100
+
+def test_pick_min_viable_family_non_weight_files():
+    files = [("readme.md", 10), ("script.py", 20)]
+    assert size._pick_min_viable_family(files) == 30

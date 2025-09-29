@@ -12,9 +12,26 @@ from src.scorer.metrics.rampup import (
     _ask_llm,
     _heuristic_rampup,
     _to_clone_url,
+    _extract_json_first,
     README_CANDIDATES,
     SKIP_DIRS
 )
+
+def test_extract_json_first_valid():
+    text = "some junk {\"score\": 0.8, \"rationale\": \"clear\"} trailing"
+    result = _extract_json_first(text)
+    assert isinstance(result, dict)
+    assert result["score"] == 0.8
+
+def test_extract_json_first_invalid_json():
+    text = "{not json}"
+    result = _extract_json_first(text)
+    assert result is None
+
+def test_extract_json_first_no_json():
+    text = "hello world"
+    result = _extract_json_first(text)
+    assert result is None
 
 # Test URL normalization
 def test_to_clone_url_github():
@@ -136,12 +153,6 @@ def test_ask_llm_no_env_vars():
     """Test LLM with missing environment variables."""
     # Clear environment variables
     with patch.dict(os.environ, {}, clear=True):
-        score = _ask_llm("README content", "file tree")
-        assert score is None
-
-def test_ask_llm_inference_client_not_available():
-    """Test when InferenceClient is not available."""
-    with patch("src.scorer.metrics.rampup.InferenceClient", None):
         score = _ask_llm("README content", "file tree")
         assert score is None
 
@@ -273,3 +284,17 @@ def test_get_ramp_up_score_clamping(mock_summary, mock_readme, mock_ask_llm, moc
     mock_ask_llm.return_value = -0.5
     score, _ = get_ramp_up("https://huggingface.co/mock/repo", "model")
     assert score == 0.0
+
+@patch("src.scorer.metrics.rampup.requests.Session.post")
+def test_ask_llm_salvage_number(mock_post, monkeypatch):
+    """LLM returns non-JSON but salvageable float."""
+    monkeypatch.setenv("GEN_AI_STUDIO_API_KEY", "fakekey")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [{"message": {"content": "score is 0.7"}}]
+    }
+    mock_post.return_value = mock_resp
+
+    score = _ask_llm("README", "TREE")
+    assert score == 0.7

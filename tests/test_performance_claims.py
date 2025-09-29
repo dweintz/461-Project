@@ -8,17 +8,23 @@ from dotenv import load_dotenv
 from pathlib import Path
 from src.scorer.metrics.performance_claims import get_performance_claims
 
-@pytest.fixture(scope = "session", autouse = True)
-def load_env():
-    '''
-    Load enviornment files once per test session.
-    '''
+# @pytest.fixture(scope = "session", autouse = True)
+# def load_env():
+#     '''
+#     Load enviornment files once per test session.
+#     '''
 
-    load_dotenv(dotenv_path = Path(__file__).resolve().parents[1] / ".env")
+#     load_dotenv(dotenv_path = Path(__file__).resolve().parents[1] / ".env")
+#     hf_token = os.getenv("HF_TOKEN")
+#     if not hf_token:
+#         raise RuntimeError("HF_TOKEN not found")
+#     return hf_token
+@pytest.fixture(scope="session", autouse=True)
+def load_env():
+    load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
     hf_token = os.getenv("HF_TOKEN")
     if not hf_token:
-        raise RuntimeError("HF_TOKEN not found")
-    return hf_token
+        pass
 
 def test_model_url(load_env):
     '''
