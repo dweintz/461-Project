@@ -7,6 +7,9 @@ import argparse
 from typing import List
 from pathlib import Path
 import time
+import io
+from contextlib import redirect_stdout
+import logging
 import sys, os
 import json
 from utils.logging import setup_logging, set_run_id, get_logger, set_url
@@ -106,6 +109,9 @@ def main() -> None:
     setup_logging(level=args.log_level, json_lines=not args.log_text)
     run_id = set_run_id(args.run_id)
     log = get_logger("cli")
+    for h in logging.getLogger().handlers:
+        if isinstance(h, logging.StreamHandler):
+            h.stream = sys.stderr
 
     start_ns = time.perf_counter_ns()
     log.info("run started", extra={"phase": "run", "function": "main", "run_id": run_id})
@@ -138,19 +144,22 @@ def main() -> None:
                 continue
             if url_type == "model":
                 try:
-                    handle_model_url(url)
+                    with redirect_stdout(io.StringIO()):
+                        handle_model_url(url)
                 except Exception:
                     log.exception("handle_model_url failed", extra={"url": url})
                 line_classifications[url] = url_type
             elif url_type == "dataset":
                 try:
-                    handle_dataset_url(url)
+                    with redirect_stdout(io.StringIO()):
+                        handle_dataset_url(url)
                 except Exception:
                     log.exception("handle_dataset_url failed", extra={"url": url})
                 line_classifications[url] = url_type
             elif url_type == "code":
                 try:
-                    handle_code_url(url)
+                    with redirect_stdout(io.StringIO()):
+                        handle_code_url(url)
                 except Exception:
                     log.exception("handle_code_url failed", extra={"url": url})
                 line_classifications[url] = url_type
@@ -219,32 +228,32 @@ def main() -> None:
                     tasks["performance_claims"] = lambda: get_performance_claims(url, url_type)
                     tasks["bus_factor"] = lambda: get_bus_factor(url, url_type)
                     tasks["ramp_up"] = lambda: get_ramp_up(url, url_type)
-
-                with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
-                    futures = {ex.submit(fn): met_name for met_name, fn in tasks.items()}
-                    for fut in as_completed(futures):
-                        metric_name = futures[fut]
-                        try:
-                            val, lat = fut.result()
-                        except Exception:
-                            log.exception("metric failed", extra={"phase": "metrics", "metric": metric_name, "url": url})
-                            val, lat = (0.0, 0)
-                        if metric_name == "code_quality":
-                            code_quality, code_quality_latency = val, lat
-                        elif metric_name == "dataset_quality":
-                            dataset_quality, dataset_quality_latency = val, lat
-                        elif metric_name == "dataset_and_code_score":
-                            dataset_and_code_score, dataset_and_code_score_latency = val, lat
-                        elif metric_name == "size":
-                            size_dict, size_latency = val, lat
-                        elif metric_name == "license":
-                            license, license_latency = val, lat
-                        elif metric_name == "performance_claims":
-                            performance_claims, performance_claims_latency = val, lat
-                        elif metric_name == "bus_factor":
-                            bus_factor, bus_factor_latency = val, lat
-                        elif metric_name == "ramp_up":
-                            ramp_up, ramp_up_latency = val, lat
+                with redirect_stdout(io.StringIO()):
+                    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+                        futures = {ex.submit(fn): met_name for met_name, fn in tasks.items()}
+                        for fut in as_completed(futures):
+                            metric_name = futures[fut]
+                            try:
+                                val, lat = fut.result()
+                            except Exception:
+                                log.exception("metric failed", extra={"phase": "metrics", "metric": metric_name, "url": url})
+                                val, lat = (0.0, 0)
+                            if metric_name == "code_quality":
+                                code_quality, code_quality_latency = val, lat
+                            elif metric_name == "dataset_quality":
+                                dataset_quality, dataset_quality_latency = val, lat
+                            elif metric_name == "dataset_and_code_score":
+                                dataset_and_code_score, dataset_and_code_score_latency = val, lat
+                            elif metric_name == "size":
+                                size_dict, size_latency = val, lat
+                            elif metric_name == "license":
+                                license, license_latency = val, lat
+                            elif metric_name == "performance_claims":
+                                performance_claims, performance_claims_latency = val, lat
+                            elif metric_name == "bus_factor":
+                                bus_factor, bus_factor_latency = val, lat
+                            elif metric_name == "ramp_up":
+                                ramp_up, ramp_up_latency = val, lat
                 
             if not line:  # nothing recognized on this line
                 # Still print a default row for this input line
