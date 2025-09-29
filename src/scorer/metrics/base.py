@@ -2,6 +2,7 @@
 Helper function for splicing url
 '''
 
+
 def get_repo_id(url: str, url_type: str) -> str:
     parts = url.split("/")
 

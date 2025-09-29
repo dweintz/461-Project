@@ -9,7 +9,6 @@ import time
 import json
 import shutil
 import tempfile
-import sys
 from pathlib import Path
 from typing import Tuple, List, Optional
 
@@ -23,6 +22,7 @@ from urllib.parse import urlparse
 
 # Load .env if present so GEN_AI_STUDIO_API_KEY / GENAI_* vars are picked up
 load_dotenv()
+
 
 def _to_clone_url(url: str, url_type: str) -> str:
     p = urlparse(url)
@@ -48,11 +48,14 @@ def _to_clone_url(url: str, url_type: str) -> str:
 
     return url
 
+
 README_CANDIDATES = [
     "README.md", "readme.md", "README.rst", "readme.rst", "README", "Readme.md",
     "docs/README.md", "docs/index.md"
 ]
-SKIP_DIRS = {".git", ".hg", ".svn", "__pycache__", ".venv", "venv", "env", "node_modules", "dist", "build"}
+SKIP_DIRS = {".git", ".hg", ".svn", "__pycache__", ".venv", "venv", "env",
+             "node_modules", "dist", "build"}
+
 
 def _read_first_readme(repo_dir: str) -> str:
     for rel in README_CANDIDATES:
@@ -63,6 +66,7 @@ def _read_first_readme(repo_dir: str) -> str:
             except Exception:
                 pass
     return ""
+
 
 def _top_level_summary(repo_dir: str, max_files: int = 120) -> str:
     entries: List[str] = []
@@ -83,10 +87,13 @@ def _top_level_summary(repo_dir: str, max_files: int = 120) -> str:
             break
     return "\n".join(entries)
 
+
 SYSTEM_PROMPT = (
     "You are a precise software onboarding evaluator.\n"
-    "Given a repository README and a brief repo file listing, rate how fast a new engineer could ramp up.\n"
-    "Consider ONLY: installation clarity, prerequisites, quickstart/usage examples, runnable commands, troubleshooting,\n"
+    "Given a repository README and a brief repo file listing, "
+    "rate how fast a new engineer could ramp up.\n"
+    "Consider ONLY: installation clarity, prerequisites, quickstart/usage examples, "
+    "runnable commands, troubleshooting,\n"
     "links to docs/tutorials, and overall coherence/structure of the README.\n\n"
     "Return STRICT JSON with two fields:\n"
     '{"score": <float between 0 and 1>, "rationale": "<<=200 chars explanation>"}\n\n'
@@ -98,15 +105,28 @@ USER_PROMPT_TEMPLATE = (
 )
 
 _HEUR_PATTERNS = [
-    r"\bpip install\b", r"\bconda (?:create|install)\b", r"\bgit clone\b", r"\bpython (?:-m )?\w+\.py\b",
-    r"\busage\b", r"\bquick\s*start\b", r"\bexample\b", r"\brequirements\.txt\b", r"\benvironment\.yml\b",
-    r"```", r"\btroubleshoot", r"\bfaq\b", r"\bdocs?\b", r"\btutorial\b"
+    r"\bpip install\b",
+    r"\bconda (?:create|install)\b",
+    r"\bgit clone\b",
+    r"\bpython (?:-m )?\w+\.py\b",
+    r"\busage\b",
+    r"\bquick\s*start\b",
+    r"\bexample\b",
+    r"\brequirements\.txt\b",
+    r"\benvironment\.yml\b",
+    r"```",
+    r"\btroubleshoot",
+    r"\bfaq\b",
+    r"\bdocs?\b",
+    r"\btutorial\b"
 ]
+
 
 def _heuristic_rampup(readme: str, tree: str) -> float:
     txt = (readme or "") + "\n" + (tree or "")
     hits = sum(1 for pat in _HEUR_PATTERNS if re.search(pat, txt, flags=re.IGNORECASE))
     return max(0.0, min(1.0, 0.15 + 0.06 * hits))
+
 
 def _session_with_retry() -> requests.Session:
     s = requests.Session()
@@ -119,6 +139,7 @@ def _session_with_retry() -> requests.Session:
     s.mount("https://", HTTPAdapter(max_retries=r))
     s.mount("http://", HTTPAdapter(max_retries=r))
     return s
+
 
 def _extract_json_first(s: str) -> dict | None:
     if not s:
@@ -155,6 +176,7 @@ def _extract_json_first(s: str) -> dict | None:
                         start = -1
                         continue
     return None
+
 
 def _ask_llm(readme: str, tree: str) -> Optional[float]:
     api_key = os.getenv("GEN_AI_STUDIO_API_KEY", "").strip()
@@ -208,8 +230,10 @@ def _ask_llm(readme: str, tree: str) -> Optional[float]:
     readme = (readme or "").strip()
     if len(readme) > 20000:
         readme = readme[:20000] + "\n\n[TRUNCATED]"
-    user_prompt_1 = USER_PROMPT_TEMPLATE.format(n_files=120, tree=tree[:8000], readme=readme) + \
-        "\n\nReturn ONLY strict JSON: {\"score\": <float 0..1>, \"rationale\": \"<=200 chars\"}."
+    user_prompt_1 = USER_PROMPT_TEMPLATE.format(
+        n_files=120, tree=tree[:8000], readme=readme) + \
+        "\n\nReturn ONLY strict JSON: \
+        {\"score\": <float 0..1>, \"rationale\": \"<=200 chars\"}."
 
     # Preflight debug
     payload = _build_payload(user_prompt_1)
@@ -220,14 +244,13 @@ def _ask_llm(readme: str, tree: str) -> Optional[float]:
         resp = session.post(url, headers={"Authorization": f"Bearer {api_key}",
                                           "Content-Type": "application/json"},
                             data=payload_str, timeout=90)
-    except requests.exceptions.Timeout as e:
+    except requests.exceptions.Timeout:
         return None
-    except requests.exceptions.SSLError as e:
+    except requests.exceptions.SSLError:
         return None
-    except requests.exceptions.ConnectionError as e:
+    except requests.exceptions.ConnectionError:
         return None
-    except Exception as e:
-        import traceback as _tb
+    except Exception:
         return None
 
     # HTTP status handling
@@ -241,7 +264,7 @@ def _ask_llm(readme: str, tree: str) -> Optional[float]:
     # Parse 1st pass
     try:
         data = resp.json()
-    except ValueError as e:
+    except ValueError:
         return None
 
     txt = None
@@ -263,7 +286,7 @@ def _ask_llm(readme: str, tree: str) -> Optional[float]:
         resp2 = session.post(url, headers={"Authorization": f"Bearer {api_key}",
                                            "Content-Type": "application/json"},
                              data=json.dumps(payload2), timeout=60)
-    except Exception as e:
+    except Exception:
         return None
 
     if resp2.status_code != 200:
@@ -271,7 +294,7 @@ def _ask_llm(readme: str, tree: str) -> Optional[float]:
 
     try:
         data2 = resp2.json()
-    except Exception as e:
+    except Exception:
         return None
 
     txt2 = None
@@ -291,7 +314,11 @@ def get_ramp_up(url: str, url_type: str) -> Tuple[float, int]:
     start = time.time()
     temp_dir = tempfile.mkdtemp()
     try:
-        kind = "dataset" if url_type.lower() == "dataset" else "model" if url_type.lower() == "model" else "code"
+        kind = (
+            "dataset" if url_type.lower() == "dataset"
+            else "model" if url_type.lower() == "model"
+            else "code"
+        )
         clone_url = _to_clone_url(url, kind)
         env = os.environ.copy()
         env.setdefault("GIT_LFS_SKIP_SMUDGE", "1")

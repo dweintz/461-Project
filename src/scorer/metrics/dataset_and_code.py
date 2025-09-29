@@ -104,5 +104,5 @@ def get_dataset_and_code_score(url: str, url_type: str):
     if has_code:
         score += 0.5
 
-    latency = int((time.time() - start_time) * 1000) 
+    latency = int((time.time() - start_time) * 1000)
     return round(score, 2), latency

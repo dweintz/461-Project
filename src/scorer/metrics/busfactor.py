@@ -158,7 +158,7 @@ def _collect_doa_inputs(repo: Repo, since_days: int) -> Tuple[
     commits = (
         list(repo.iter_commits("HEAD", since=since_arg))
         or list(repo.iter_commits("HEAD"))
-    ) 
+    )
     for c in commits:
         author = (c.author.email or c.author.name or "unknown").strip().lower()
         try:

@@ -11,7 +11,7 @@ from huggingface_hub import HfApi, login
 from .base import get_repo_id
 from typing import Tuple, Optional
 
-# suppress logging from Hugging Face 
+# suppress logging from Hugging Face
 import logging
 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
@@ -27,6 +27,7 @@ compatible_licenses = [
     "bsd-3-clause",
     "lgpl-2.1"
 ]
+
 
 def _maybe_login() -> None:
     """
@@ -52,6 +53,7 @@ def _maybe_login() -> None:
         # Swallow login issues; callers should still work anonymously where possible
         pass
 
+
 # Normalize license names from HF/GitHub API
 def is_compatible(license: str) -> bool:
     if not license:
@@ -73,12 +75,13 @@ def is_compatible(license: str) -> bool:
 
     return normalized in compatible_licenses
 
+
 def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
     _maybe_login()
     start_time = time.time()
 
     # Get repo id
-    try: 
+    try:
         repo_id = get_repo_id(url, url_type)
     except Exception as e:
         print(f"Error getting repo id {e}")
@@ -89,7 +92,7 @@ def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
     if url_type == "model":
         info = HF_API.model_info(repo_id=repo_id)
         license = (getattr(info, "license", None) or (info.cardData or {}).get("license"))
-    
+
     elif url_type == "dataset":
         info = HF_API.dataset_info(repo_id=repo_id)
         license = getattr(info, "license", None)
@@ -98,7 +101,7 @@ def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
         base_url = f"https://api.github.com/repos/{repo_id}"
         license_info = requests.get(f"{base_url}/license").json()
         license = license_info.get("license", {}).get("name")
-    
+
     # print(f"License for {url} is {license}")
 
     # Check if it's compatible with LGPLv2.1
@@ -108,5 +111,5 @@ def get_license_score(url: str, url_type: str) -> Tuple[Optional[int], int]:
 
     if normalized:
         return 1, latency
-    else: 
+    else:
         return 0, latency

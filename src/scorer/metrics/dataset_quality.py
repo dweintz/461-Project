@@ -18,8 +18,9 @@ HF_API = HfApi()
 # login(token=HF_TOKEN)
 
 # Downloads and likes targets for top tier quality
-max_downloads = 1000000 # 1 million downloads
-max_likes = 2000 
+max_downloads = 1000000  # 1 million downloads
+max_likes = 2000
+
 
 def _maybe_login() -> None:
     """
@@ -45,10 +46,12 @@ def _maybe_login() -> None:
         # Swallow login issues; callers should still work anonymously where possible
         pass
 
+
 def normalize(value: int, target: int) -> float:
     if value <= 0:
         return 0.0
     return min(1.0, math.log10(value + 1) / math.log10(target + 1))
+
 
 def get_dataset_quality_score(url: str, url_type: str) -> Tuple[Optional[float], int]:
     _maybe_login()
@@ -60,13 +63,13 @@ def get_dataset_quality_score(url: str, url_type: str) -> Tuple[Optional[float],
         return None, latency
 
     # Get repo id
-    try: 
+    try:
         repo_id = get_repo_id(url, url_type)
     except Exception as e:
         print(f"Error getting repo id {e}")
         latency = int((time.time() - start_time) * 1000)
         return None, latency
-    
+
     dataset_info = HF_API.dataset_info(repo_id=repo_id, files_metadata=False)
 
     # Look at number of downloads and likes
@@ -80,7 +83,7 @@ def get_dataset_quality_score(url: str, url_type: str) -> Tuple[Optional[float],
     # If likes/stars don't exist, return downloads score
     if likes == 0:
         return round(downloads_score, 2)
-    
+
     # Weighted sum of downloads and likes scores
     score = 0.8 * downloads_score + 0.2 * likes_score
 

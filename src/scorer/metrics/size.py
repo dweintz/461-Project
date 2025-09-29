@@ -1,5 +1,4 @@
 # --- size.py (refined) -------------------------------------------------------
-import math
 import os
 import re
 import time
@@ -36,13 +35,17 @@ USABLE_FRACTION = {
 _WEIGHT_EXTS = {".safetensors", ".bin", ".pt", ".pth", ".onnx", ".tflite", ".pb"}
 
 # Shard pattern: name-00001-of-00005.safetensors
-_SHARD_RE = re.compile(r"^(?P<prefix>.+?)-\d{5}-of-\d{5}\.(?P<ext>[^.]+)$", re.IGNORECASE)
+_SHARD_RE = re.compile(r"^(?P<prefix>.+?)-\d{5}-of-\d{5}\.(?P<ext>[^.]+)$",
+                       re.IGNORECASE)
+
 
 def _looks_like_weight_file(name: str) -> bool:
     lower = name.lower()
-    if any(token in lower for token in ("optimizer", "optim", "training", "trainer", "adam")):
+    if any(token in lower for token in
+           ("optimizer", "optim", "training", "trainer", "adam")):
         return False
     return any(lower.endswith(ext) for ext in _WEIGHT_EXTS)
+
 
 def _family_key(filename: str) -> str:
     """
@@ -57,17 +60,30 @@ def _family_key(filename: str) -> str:
     base = filename.lower().split("/")[-1]
     return base
 
+
 def _framework_weight(filename: str) -> str:
     fn = filename.lower()
-    if fn.endswith(".safetensors"): return "safetensors"
-    if fn.endswith(".bin") or fn.endswith(".pt") or fn.endswith(".pth"): return "pytorch"
-    if fn.endswith(".onnx"): return "onnx"
-    if fn.endswith(".tflite"): return "tflite"
-    if fn.endswith(".pb"): return "tensorflow"
+    if fn.endswith(".safetensors"):
+        return "safetensors"
+    if fn.endswith(".bin") or fn.endswith(".pt") or fn.endswith(".pth"):
+        return "pytorch"
+    if fn.endswith(".onnx"):
+        return "onnx"
+    if fn.endswith(".tflite"):
+        return "tflite"
+    if fn.endswith(".pb"):
+        return "tensorflow"
     return "other"
 
+
 # Preference order if two families have the *same* total size
-_FRAMEWORK_PREF = {"safetensors": 0, "pytorch": 1, "onnx": 2, "tflite": 3, "tensorflow": 4, "other": 5}
+_FRAMEWORK_PREF = {"safetensors": 0,
+                   "pytorch": 1,
+                   "onnx": 2,
+                   "tflite": 3,
+                   "tensorflow": 4,
+                   "other": 5}
+
 
 def _pick_min_viable_family(files: List[tuple]) -> int:
     """
@@ -97,36 +113,46 @@ def _pick_min_viable_family(files: List[tuple]) -> int:
         elif total == best_total:
             # tie-break on framework preference
             fw_best = _FRAMEWORK_PREF.get(fam_framework.get(best_key, "other"), 99)
-            fw_new  = _FRAMEWORK_PREF.get(fam_framework.get(k, "other"), 99)
+            fw_new = _FRAMEWORK_PREF.get(fam_framework.get(k, "other"), 99)
             if fw_new < fw_best:
                 best_key, best_total = k, total
     return int(best_total or 0)
 
+
 def _maybe_login() -> None:
-    token = os.getenv("HF_TOKEN") or os.getenv("HF_Token") or os.getenv("HUGGINGFACE_TOKEN")
+    token = os.getenv("HF_TOKEN") or os.getenv("HF_Token") or \
+        os.getenv("HUGGINGFACE_TOKEN")
     if not token:
         return
     try:
-        login(token=token, add_to_git_credential=False, write_permission=False, new_session=False)
+        login(token=token,
+              add_to_git_credential=False,
+              write_permission=False,
+              new_session=False)
     except Exception:
         pass
+
 
 def _hf_total_weight_bytes_model(repo_id: str) -> int:
     info = HF_API.model_info(repo_id=repo_id, files_metadata=True)
     files = [(s.rfilename or "", int(s.size or 0)) for s in info.siblings]
     return _pick_min_viable_family(files)
 
+
 def _hf_total_weight_bytes_dataset(repo_id: str) -> int:
     info = HF_API.dataset_info(repo_id=repo_id, files_metadata=True)
     return sum(int(s.size or 0) for s in info.siblings)
+
 
 def _github_repo_bytes(repo_id: str) -> int:
     base_url = f"https://api.github.com/repos/{repo_id}"
     code_info = requests.get(base_url).json()
     return int(code_info.get("size", 0) or 0) * 1024
 
+
 # ---- Scoring curve (tuned to your expected outputs) -------------------------
 _K_UNDER = 1.9  # controls drop rate while u in [0,1]
+
 
 def _score_utilization(u: float) -> float:
     if u <= 0:
@@ -136,11 +162,13 @@ def _score_utilization(u: float) -> float:
     # Over budget: penalize quickly
     return max(0.0, 1.0 - _K_UNDER - 3.0 * (u - 1.0))
 
+
 def _score_on_hardware(total_bytes: int, hw_key: str) -> float:
     limit = HARDWARE_LIMITS[hw_key]
     effective = max(1, int(limit * USABLE_FRACTION[hw_key]))
     u = total_bytes / effective
     return max(0.0, min(1.0, round(_score_utilization(u), 2)))
+
 
 def get_size_score(url: str, url_type: str) -> Tuple[Optional[Dict[str, float]], int]:
     _maybe_login()
