@@ -23,6 +23,9 @@ from metrics.dataset_and_code import get_dataset_and_code_score
 from metrics.rampup import get_ramp_up
 from metrics.busfactor import get_bus_factor
 from metrics.base import get_repo_id
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+MAX_WORKERS = int(os.environ.get("SCORER_MAX_WORKERS", "4"))
 
 def parse_args() -> argparse.Namespace:
     '''
@@ -195,19 +198,70 @@ def main() -> None:
             
             category = url_type.upper()
 
+            tasks = {}
             if url_type == 'code':
-                code_quality, code_quality_latency = get_code_quality(url, url_type)
+                tasks["code_quality"] = lambda: get_code_quality(url, url_type)
             elif url_type == 'dataset':
-                dataset_quality, dataset_quality_latency = get_dataset_quality_score(url, url_type)
-                dataset_and_code_score, dataset_and_code_score_latency = get_dataset_and_code_score(url, url_type)
+                tasks["dataset_quality"] = lambda: get_dataset_quality_score(url, url_type)
+                tasks["dataset_and_code_score"] = lambda: get_dataset_and_code_score(url, url_type)
             elif url_type == 'model':
-                size_dict, size_latency = get_size_score(url, url_type)
-                license, license_latency = get_license_score(url, url_type)
-                performance_claims, performance_claims_latency = get_performance_claims(url, url_type)
-                bus_factor, bus_factor_latency = get_bus_factor(url, url_type)
-                ramp_up, ramp_up_latency = get_ramp_up(url, url_type)
-            log.info("url done", extra = {"phase": "controller", "url": url})
+                tasks["size"] = lambda: get_size_score(url, url_type)
+                tasks["license"] = lambda: get_license_score(url, url_type)
+                tasks["performance_claims"] = lambda: get_performance_claims(url, url_type)
+                tasks["bus_factor"] = lambda: get_bus_factor(url, url_type)
+                tasks["ramp_up"] = lambda: get_ramp_up(url, url_type)
 
+            # Run tasks (parallel if requested)
+            if tasks:
+                with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+                    futures = {ex.submit(fn): met_name for met_name, fn in tasks.items()}
+                    for fut in as_completed(futures):
+                        metric_name = futures[fut]
+                        try:
+                            val, lat = fut.result()
+                        except Exception:
+                            log.exception("metric failed", extra={"phase": "metrics", "metric": metric_name, "url": url})
+                            val, lat = (0.0, 0)
+                        if metric_name == "code_quality":
+                            code_quality, code_quality_latency = val, lat
+                        elif metric_name == "dataset_quality":
+                            dataset_quality, dataset_quality_latency = val, lat
+                        elif metric_name == "dataset_and_code_score":
+                            dataset_and_code_score, dataset_and_code_score_latency = val, lat
+                        elif metric_name == "size":
+                            size_dict, size_latency = val, lat
+                        elif metric_name == "license":
+                            license, license_latency = val, lat
+                        elif metric_name == "performance_claims":
+                            performance_claims, performance_claims_latency = val, lat
+                        elif metric_name == "bus_factor":
+                            bus_factor, bus_factor_latency = val, lat
+                        elif metric_name == "ramp_up":
+                            ramp_up, ramp_up_latency = val, lat
+            else:
+                for metric_name, fn in tasks.items():
+                    try:
+                        val, lat = fn()
+                    except Exception:
+                        log.exception("metric failed", extra={"phase": "metrics", "metric": metric_name, "url": url})
+                        val, lat = (0.0, 0)
+                    if metric_name == "code_quality":
+                        code_quality, code_quality_latency = val, lat
+                    elif metric_name == "dataset_quality":
+                        dataset_quality, dataset_quality_latency = val, lat
+                    elif metric_name == "dataset_and_code_score":
+                        dataset_and_code_score, dataset_and_code_score_latency = val, lat
+                    elif metric_name == "size":
+                        size_dict, size_latency = val, lat
+                    elif metric_name == "license":
+                        license, license_latency = val, lat
+                    elif metric_name == "performance_claims":
+                        performance_claims, performance_claims_latency = val, lat
+                    elif metric_name == "bus_factor":
+                        bus_factor, bus_factor_latency = val, lat
+                    elif metric_name == "ramp_up":
+                        ramp_up, ramp_up_latency = val, lat
+            
         # Compute net score
         size_score = 0.0
         if size_dict:
