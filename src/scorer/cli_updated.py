@@ -2,19 +2,15 @@
 CLI for scoring tool.
 '''
 from __future__ import annotations
-import sys, io
-_BOOT_STDOUT = sys.stdout
-sys.stdout = io.StringIO()
+import sys
+import io
 import argparse
 from typing import List
 from pathlib import Path
 import time
 import os
 from contextlib import redirect_stdout
-import logging
-import sys
 import math
-import os
 import json
 from utils.logging import setup_logging, set_run_id, get_logger
 from url_handler.base import classify_url
@@ -32,9 +28,9 @@ from metrics.busfactor import get_bus_factor
 from metrics.base import get_repo_id
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-
-
 MAX_WORKERS = int(os.environ.get("SCORER_MAX_WORKERS", "4"))
+_BOOT_STDOUT = sys.stdout
+sys.stdout = io.StringIO()
 
 
 def parse_args() -> argparse.Namespace:
@@ -330,7 +326,8 @@ def main() -> None:
             )
 
             # Compute net score latency in milliseconds
-            net_score_latency = max(1, math.ceil((time.perf_counter_ns() - start_time) / 1_000_000))
+            net_score_latency = \
+                max(1, math.ceil((time.perf_counter_ns() - start_time) / 1_000_000))
 
             # Build NDJSON output
             output = {
