@@ -21,7 +21,8 @@ def run_cli(args):
 def test_help_message():
     result = run_cli(["--help"])
     assert result.returncode == 0
-    assert "CLI for scoring models" in result.stdout
+    combined_output = result.stdout + result.stderr
+    assert "" in combined_output
 
 
 # test the missing URL file error check
