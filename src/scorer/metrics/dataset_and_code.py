@@ -16,6 +16,7 @@ load_dotenv()
 HF_API = HfApi()
 # login(token=HF_TOKEN)
 
+
 def _maybe_login() -> None:
     """
     Log in non-interactively only if a token is present.
@@ -39,6 +40,7 @@ def _maybe_login() -> None:
     except Exception:
         # Swallow login issues; callers should still work anonymously where possible
         pass
+
 
 def get_dataset_and_code_score(url: str, url_type: str):
     _maybe_login()
@@ -73,7 +75,9 @@ def get_dataset_and_code_score(url: str, url_type: str):
         if "datasets" in readme:
             readme_text += " ".join(readme.get("datasets", []))
         if "model-index" in readme:
-            readme_text += " ".join([m.get("name", "") for m in readme.get("model-index", [])])
+            readme_text += " ".join(
+                [m.get("name", "") for m in readme.get("model-index", [])]
+            )
     else:
         readme_text = ""
 
@@ -88,7 +92,9 @@ def get_dataset_and_code_score(url: str, url_type: str):
     # Check for code scripts or requirements
     files = [f.rfilename for f in repo_info.siblings]
     has_code = any(
-        f.endswith((".py", ".ipynb")) or "requirements" in f.lower() or "train" in f.lower()
+        f.endswith((".py", ".ipynb"))
+        or "requirements" in f.lower()
+        or "train" in f.lower()
         for f in files
     )
 
@@ -98,5 +104,5 @@ def get_dataset_and_code_score(url: str, url_type: str):
     if has_code:
         score += 0.5
 
-    latency = int((time.time() - start_time) * 1000)
+    latency = int((time.time() - start_time) * 1000) 
     return round(score, 2), latency
