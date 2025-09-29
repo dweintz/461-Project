@@ -238,11 +238,6 @@ def main() -> None:
                     elif metric_name == "ramp_up":
                         ramp_up, ramp_up_latency = val, lat
             
-        # Compute net score
-        size_score = 0.0
-        if size_dict:
-            size_score = sum(size_dict.values()) / len(size_dict)
-        
         if not line:  # nothing recognized on this line
             # Still print a default row for this input line
             output = {
@@ -270,6 +265,12 @@ def main() -> None:
             print(json.dumps(output, separators=(',', ':')))
             sys.stdout.flush()
             continue
+
+        
+        # Compute net score
+        size_score = 0.0
+        if size_dict:
+            size_score = sum(size_dict.values()) / len(size_dict)
 
         net_score = 0.15 * size_score + \
                     0.15 * license + \
