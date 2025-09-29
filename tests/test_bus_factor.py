@@ -11,34 +11,37 @@ from src.scorer.metrics.busfactor import (
     _resolve_code_repo_for_target
 )
 
+
 def test_hf_kind_and_repo_id():
     """Test parsing HF URLs into kind and repo ID."""
     # Model URLs
     result = _hf_kind_and_repo_id("https://huggingface.co/google/bert-base-uncased")
     assert result == ("model", "google/bert-base-uncased")
-    
+
     # Dataset URLs
     result = _hf_kind_and_repo_id("https://huggingface.co/datasets/squad")
-    assert result == None
-    
+    assert result is None
+
     # Invalid URLs
     assert _hf_kind_and_repo_id("https://huggingface.co/google") is None
     assert _hf_kind_and_repo_id("https://huggingface.co/datasets") is None
     assert _hf_kind_and_repo_id("https://github.com/owner/repo") is None
+
 
 def test_normalize_github_clone():
     """Test GitHub URL normalization."""
     # Basic GitHub URL
     result = _normalize_github_clone("https://github.com/owner/repo")
     assert result == "https://github.com/owner/repo.git"
-    
+
     # GitHub URL with tree
     result = _normalize_github_clone("https://github.com/owner/repo/tree/main")
     assert result == "https://github.com/owner/repo.git"
-    
+
     # Invalid GitHub URL
     with pytest.raises(ValueError):
         _normalize_github_clone("https://github.com/owner")
+
 
 @patch("src.scorer.metrics.busfactor.HF")
 def test_resolve_code_repo_for_target_github(mock_hf):
@@ -46,6 +49,7 @@ def test_resolve_code_repo_for_target_github(mock_hf):
     url = "https://github.com/owner/repo"
     result = _resolve_code_repo_for_target(url, "code")
     assert result == "https://github.com/owner/repo.git"
+
 
 @patch("src.scorer.metrics.busfactor.HF")
 def test_resolve_code_repo_for_target_hf_model_with_gh_link(mock_hf):
@@ -56,12 +60,13 @@ def test_resolve_code_repo_for_target_hf_model_with_gh_link(mock_hf):
         "summary": "Some summary"
     }
     mock_hf.model_info.return_value = mock_info
-    
+
     url = "https://huggingface.co/google/bert-base-uncased"
     result = _resolve_code_repo_for_target(url, "model")
-    
+
     assert result == "https://github.com/owner/code-repo.git"
-    mock_hf.model_info.assert_called_once_with("google/bert-base-uncased", files_metadata=False)
+    mock_hf.model_info.assert_called_once_with("google/bert-base-uncased",
+                                               files_metadata=False)
 
 
 def make_mock_repo(file_structure=None, authors=None):
@@ -79,6 +84,7 @@ def make_mock_repo(file_structure=None, authors=None):
     mock_repo.git.log.return_value = "example@example.com\n"
 
     return mock_repo
+
 
 @patch("src.scorer.metrics.busfactor.Repo.clone_from")
 @patch("src.scorer.metrics.busfactor.Repo", autospec=True)
@@ -119,6 +125,7 @@ def test_get_bus_factor_clone_exception(mock_clone_from):
     assert isinstance(latency, int)
     mock_clone_from.assert_called_once()
 
+
 def test_is_code_like_and_binary_skip(tmp_path):
     # code-like file
     file1 = tmp_path / "script.py"
@@ -157,7 +164,12 @@ def test_authors_by_file_and_doa_logic():
     creators = {"file1.py": "a1@example.com"}
 
     # _doa computation
-    val_a1 = _doa("a1@example.com", "file1.py", dl, total_by_file, contributors, creators)
+    val_a1 = _doa("a1@example.com",
+                  "file1.py",
+                  dl,
+                  total_by_file,
+                  contributors,
+                  creators)
     val_a2 = _doa("a2", "file1.py", dl, total_by_file, contributors, creators)
     assert val_a1 > val_a2
 

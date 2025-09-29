@@ -2,19 +2,20 @@ import types
 from unittest.mock import patch, MagicMock
 from src.scorer.metrics import size
 
+
 def test_score_for_hardware_under_limit():
-    limit = 1000000000 # 1GB
     total_bytes = 100000000  # 100MB
     score = size._score_on_hardware(total_bytes, "aws_server")
     assert 0 < score <= 1
-    assert score > 0.5 
+    assert score > 0.5
+
 
 def test_score_for_hardware_over_limit():
-    limit = 1000000000
     total_bytes = 10_000_000_000  # 10GB
     score = size._score_on_hardware(total_bytes, "desktop_pc")
     assert 0 <= score < 1
     assert score < 0.5
+
 
 @patch("src.scorer.metrics.size.get_repo_id", return_value="mock/repo")
 def test_get_size_score_model(mock_get_repo_id):
@@ -29,6 +30,7 @@ def test_get_size_score_model(mock_get_repo_id):
     assert all(0 <= v <= 1 for v in scores.values())
     assert isinstance(latency, int)
 
+
 @patch("src.scorer.metrics.size.get_repo_id", return_value="mock/repo")
 def test_get_size_score_dataset(mock_get_repo_id):
     fake_file = types.SimpleNamespace(size=50_000_000)
@@ -39,24 +41,29 @@ def test_get_size_score_dataset(mock_get_repo_id):
     assert isinstance(scores, dict)
     assert "raspberry_pi" in scores
 
+
 @patch("src.scorer.metrics.size.get_repo_id", return_value="mock/repo")
 def test_get_size_score_code(mock_get_repo_id):
     fake_response = {"size": 1024}  # GitHub "size" is KB
-    with patch("src.scorer.metrics.size.requests.get", return_value=MagicMock(json=lambda: fake_response)):
+    with patch("src.scorer.metrics.size.requests.get",
+               return_value=MagicMock(json=lambda: fake_response)):
         scores, latency = size.get_size_score("fake_url", "code")
 
     assert isinstance(scores, dict)
     assert "aws_server" in scores
+
 
 def test_looks_like_weight_file_positive():
     assert size._looks_like_weight_file("model.safetensors")
     assert size._looks_like_weight_file("weights.pt")
     assert size._looks_like_weight_file("export.onnx")
 
+
 def test_looks_like_weight_file_negative():
     assert not size._looks_like_weight_file("optimizer.pt")
     assert not size._looks_like_weight_file("training_state.bin")
     assert not size._looks_like_weight_file("notes.txt")
+
 
 def test_family_key_sharded_and_nonsharded():
     # Sharded file
@@ -67,6 +74,7 @@ def test_family_key_sharded_and_nonsharded():
     key2 = size._family_key("folder/model.pt")
     assert key2 == "model.pt"
 
+
 def test_framework_weight_mapping():
     assert size._framework_weight("x.safetensors") == "safetensors"
     assert size._framework_weight("x.pt") == "pytorch"
@@ -76,12 +84,14 @@ def test_framework_weight_mapping():
     assert size._framework_weight("x.pb") == "tensorflow"
     assert size._framework_weight("x.unknown") == "other"
 
+
 def test_pick_min_viable_family_prefers_smallest():
     files = [
         ("big_model.safetensors", 200),
         ("small_model.safetensors", 50),
     ]
     assert size._pick_min_viable_family(files) == 50
+
 
 def test_pick_min_viable_family_tie_breaker_framework():
     files = [
@@ -90,6 +100,7 @@ def test_pick_min_viable_family_tie_breaker_framework():
     ]
     # safetensors preferred over pytorch on tie
     assert size._pick_min_viable_family(files) == 100
+
 
 def test_pick_min_viable_family_non_weight_files():
     files = [("readme.md", 10), ("script.py", 20)]

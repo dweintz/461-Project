@@ -19,6 +19,8 @@ from src.scorer.metrics.performance_claims import get_performance_claims
 #     if not hf_token:
 #         raise RuntimeError("HF_TOKEN not found")
 #     return hf_token
+
+
 @pytest.fixture(scope="session", autouse=True)
 def load_env():
     load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
@@ -26,12 +28,13 @@ def load_env():
     if not hf_token:
         pass
 
+
 def test_model_url(load_env):
     '''
     Test performance claims on a Hugging Face URL
     '''
 
-    url_model = f"https://huggingface.co/bert-base-uncased"
+    url_model = "https://huggingface.co/bert-base-uncased"
     url_type_model = "model"
     score, latency = get_performance_claims(url_model, url_type_model)
 
@@ -41,6 +44,7 @@ def test_model_url(load_env):
     assert isinstance(latency, (int))
     assert 0.0 <= score <= 1.0
     assert latency > 0
+
 
 def test_code_url(load_env):
     '''

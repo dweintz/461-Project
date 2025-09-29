@@ -4,8 +4,7 @@ Tests for CLI
 
 import subprocess
 import sys
-from pathlib import Path
-import tempfile
+
 
 # run the CLI
 def run_cli(args):
@@ -17,11 +16,13 @@ def run_cli(args):
     )
     return result
 
+
 # test the help message
 def test_help_message():
     result = run_cli(["--help"])
     assert result.returncode == 0
     assert "CLI for scoring models" in result.stdout
+
 
 # test the missing URL file error check
 def test_missing_url_file():
